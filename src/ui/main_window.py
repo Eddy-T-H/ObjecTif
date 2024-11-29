@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTreeView, QLabel, QPushButton, QFileDialog,
     QStatusBar, QMessageBox, QSplitter, QGroupBox, QTreeWidget, QTreeWidgetItem,
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QTabWidget
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
@@ -15,6 +15,11 @@ from loguru import logger
 from typing import Optional
 from src.config import AppConfig
 from src.core.test_item_manager import TestObjectsManager
+
+from .dialogs.create_affaire_dialog import CreateAffaireDialog
+from .dialogs.create_scelle_dialog import CreateScelleDialog
+from .widgets.photo_viewer import PhotoViewer
+
 
 
 class MainWindow(QMainWindow):
@@ -49,10 +54,15 @@ class MainWindow(QMainWindow):
         # Configuration de l'interface et vérification du workspace
         self._setup_ui()
         self._check_workspace()
+        # Met à jour l'affichage du workspace
+        self._update_workspace_label()
 
         # Si un workspace existe, on rafraîchit la vue
         if self.config.paths.workspace_path:
             self._refresh_workspace_view()
+
+        # Connexion du signal
+        self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
 
     def _setup_ui(self):
         """Configure l'interface utilisateur complète avec tous ses composants."""
@@ -98,8 +108,15 @@ class MainWindow(QMainWindow):
         main_splitter = QSplitter(Qt.Orientation.Vertical)
 
         # Zone des affaires
-        cases_group = QGroupBox("Affaires")
+        cases_group = QGroupBox("Dossiers")
         cases_layout = QVBoxLayout()
+
+
+        # Bouton pour ajouter une affaire
+        add_affaire_btn = QPushButton("Nouveau Dossier")
+        add_affaire_btn.clicked.connect(self._create_new_affaire)  # Connexion au bon slot
+        cases_layout.addWidget(add_affaire_btn)
+
         self.cases_tree = QTreeView()
         self.cases_model = QFileSystemModel()
         self.cases_model.setRootPath("")
@@ -133,17 +150,18 @@ class MainWindow(QMainWindow):
         objects_group = QGroupBox("Objets d'essai")
         objects_layout = QVBoxLayout()
 
+        # Bouton pour ajouter un objet
+        self.add_object_btn = QPushButton("Ajouter un objet d'essai")
+        self.add_object_btn.clicked.connect(self._add_new_object)
+        self.add_object_btn.setEnabled(False)  # Désactivé par défaut
+        objects_layout.addWidget(self.add_object_btn)
+
         # Liste des objets
         self.objects_list = QTreeWidget()
         self.objects_list.setHeaderLabels(["Objets"])
         self.objects_list.itemClicked.connect(self._on_object_selected)
         objects_layout.addWidget(self.objects_list)
 
-        # Bouton pour ajouter un objet
-        self.add_object_btn = QPushButton("Ajouter un objet d'essai")
-        self.add_object_btn.clicked.connect(self._add_new_object)
-        self.add_object_btn.setEnabled(False)  # Désactivé par défaut
-        objects_layout.addWidget(self.add_object_btn)
 
         objects_group.setLayout(objects_layout)
 
@@ -163,11 +181,20 @@ class MainWindow(QMainWindow):
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
-        # Zone de prévisualisation Android
-        android_view = QWidget()
-        android_view.setMinimumSize(400, 300)
-        android_view.setStyleSheet("background-color: black;")
-        right_layout.addWidget(android_view)
+        # Création des onglets
+        preview_tabs = QTabWidget()
+
+        # Onglet Preview (zone noire actuelle)
+        preview_widget = QWidget()
+        preview_widget.setMinimumSize(400, 300)
+        preview_widget.setStyleSheet("background-color: black;")
+        preview_tabs.addTab(preview_widget, "Preview")
+
+        # Onglet Photos
+        self.photo_viewer = PhotoViewer()
+        preview_tabs.addTab(self.photo_viewer, "Photos")
+
+        right_layout.addWidget(preview_tabs)
 
         # Groupe des boutons d'action
         actions_group = QGroupBox("Actions Photos")
@@ -190,6 +217,43 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(actions_group)
 
         return right_panel
+
+    def _create_new_affaire(self):
+        """
+        Ouvre le dialogue de création d'une nouvelle affaire et crée le dossier correspondant.
+        Vérifie que le workspace est configuré avant de permettre la création.
+        """
+        if not self.config.paths.workspace_path:
+            QMessageBox.warning(self, "Erreur",
+                                "Veuillez d'abord configurer un dossier de travail.")
+            return
+
+        dialog = CreateAffaireDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            numero = dialog.get_numero()
+            if numero:
+                try:
+                    # Crée le dossier de l'affaire dans le workspace
+                    affaire_path = self.config.paths.workspace_path / numero
+                    affaire_path.mkdir(exist_ok=False)
+
+                    # Rafraîchit la vue des affaires
+                    self._refresh_workspace_view()
+
+                    self.statusBar().showMessage(f"Dossier {numero} créé")
+                    logger.info(f"Nouvelle affaire créée : {numero}")
+
+                    # Sélectionne automatiquement la nouvelle affaire
+                    index = self.cases_model.index(str(affaire_path))
+                    self.cases_tree.setCurrentIndex(index)
+                    self._on_case_selected(index)
+
+                except FileExistsError:
+                    QMessageBox.warning(self, "Erreur",
+                                        f"Un dossier portant le numéro {numero} existe déjà.")
+                except Exception as e:
+                    QMessageBox.critical(self, "Erreur",
+                                         f"Erreur lors de la création du dossier : {str(e)}")
 
     def _create_new_scelle(self):
         """Ouvre le dialogue de création d'un nouveau scellé."""
@@ -225,6 +289,14 @@ class MainWindow(QMainWindow):
         Gère la sélection d'un scellé.
         Met à jour la liste des objets d'essai et active les boutons appropriés.
         """
+        # Vérifie si un chargement est déjà en cours
+        if hasattr(self.photo_viewer,
+                   'loader_thread') and self.photo_viewer.loader_thread:
+            return  # Ignore complètement la sélection si un chargement est en cours
+
+        # Désactive immédiatement l'arbre des scellés
+        self.scelles_tree.setEnabled(False)
+
         item = self.scelles_model.itemFromIndex(index)
         if not item:
             return
@@ -249,16 +321,21 @@ class MainWindow(QMainWindow):
         # Charge les objets existants
         self._load_existing_objects(scelle_path)
 
+        # On charge les photos existantes du scellé et de ses objets
+        photos = self._organize_photos(scelle_path)
+        self.photo_viewer.load_photos(photos)
+
     def _load_existing_objects(self, scelle_path: Path):
         """Charge la liste des objets depuis le fichier de configuration."""
         self.objects_list.clear()
 
         # Utilise le gestionnaire d'objets pour obtenir la liste
         objects_manager = TestObjectsManager(scelle_path)
+        scelle_num = scelle_path.name  # Récupère le nom du scellé depuis le chemin
 
         # Ajoute chaque objet à la liste
         for letter in objects_manager.get_object_letters():
-            item = QTreeWidgetItem([f"Objet {letter}"])
+            item = QTreeWidgetItem([f"{scelle_num}_{letter}"])
             item.setData(0, Qt.ItemDataRole.UserRole, letter)
             self.objects_list.addTopLevelItem(item)
 
@@ -272,8 +349,9 @@ class MainWindow(QMainWindow):
             objects_manager = TestObjectsManager(self.current_scelle)
             new_letter = objects_manager.add_object()
 
-            # Ajoute le nouvel objet à la liste
-            new_item = QTreeWidgetItem([f"Objet {new_letter}"])
+            # Ajoute le nouvel objet à la liste avec le format NUM_SCELLE_LETTRE
+            scelle_num = self.current_scelle.name
+            new_item = QTreeWidgetItem([f"{scelle_num}_{new_letter}"])
             new_item.setData(0, Qt.ItemDataRole.UserRole, new_letter)
             self.objects_list.addTopLevelItem(new_item)
 
@@ -299,52 +377,52 @@ class MainWindow(QMainWindow):
             self.current_object = object_letter
 
     def _enable_scelle_photo_buttons(self):
-        """Active les boutons appropriés pour un scellé."""
+        """
+        Active les boutons de photos du scellé.
+        Les photos du scellé sont disponibles dès qu'un scellé est sélectionné.
+        """
         self.btn_photo_ferme.setEnabled(True)
         self.btn_photo_content.setEnabled(True)
-        self.btn_photo_objet.setEnabled(True)
         self.btn_photo_recond.setEnabled(True)
+        self.btn_photo_objet.setEnabled(False)  # Désactivé jusqu'à sélection d'un objet
 
     def _enable_object_photo_buttons(self):
-        """Active uniquement le bouton de photo d'objet."""
-        self.btn_photo_ferme.setEnabled(False)
-        self.btn_photo_content.setEnabled(False)
+        """
+        Active les boutons quand un objet est sélectionné.
+        Les photos du scellé parent restent disponibles.
+        """
+        # On garde les boutons du scellé actifs
+        self.btn_photo_ferme.setEnabled(True)
+        self.btn_photo_content.setEnabled(True)
+        self.btn_photo_recond.setEnabled(True)
+        # On active en plus la photo d'objet
         self.btn_photo_objet.setEnabled(True)
-        self.btn_photo_recond.setEnabled(False)
 
     def _disable_photo_buttons(self):
         """Désactive tous les boutons photo."""
         for btn in [self.btn_photo_ferme, self.btn_photo_content,
-                   self.btn_photo_objet, self.btn_photo_recond]:
+                    self.btn_photo_objet, self.btn_photo_recond]:
             btn.setEnabled(False)
 
     def _load_scelles(self, case_path: Path):
-        """Charge la liste des scellés et leurs objets d'après les fichiers existants."""
+        """
+        Charge la liste des scellés pour une affaire donnée.
+        Affiche uniquement les scellés sans leurs objets d'essai.
+
+        Args:
+            case_path: Chemin du dossier de l'affaire
+        """
         self.scelles_model.clear()
-        self.scelles_model.setHorizontalHeaderLabels(['Scellés et Objets'])
+        self.scelles_model.setHorizontalHeaderLabels(['Scellés'])
 
         # Parcourt les dossiers de scellés
         for scelle_path in case_path.iterdir():
             if scelle_path.is_dir():
-                # Crée l'item du scellé
+                # Crée uniquement l'item du scellé
                 scelle_item = QStandardItem(scelle_path.name)
                 scelle_item.setData(str(scelle_path))
                 self.scelles_model.appendRow(scelle_item)
 
-                # Cherche les objets d'essai existants
-                objets = set()
-                for photo in scelle_path.glob(f"{scelle_path.name}_*_*.jpg"):
-                    # Parse le nom de fichier pour trouver les objets
-                    parts = photo.stem.split('_')
-                    if len(parts) >= 3 and len(
-                            parts[2]) == 1:  # Si c'est un objet (lettre unique)
-                        objets.add(parts[2])  # Ajoute la lettre de l'objet
-
-                # Ajoute les objets trouvés comme sous-éléments
-                for objet in sorted(objets):
-                    objet_item = QStandardItem(f"{scelle_path.name}_{objet}")
-                    objet_item.setData(f"{str(scelle_path)}_{objet}")
-                    scelle_item.appendRow(objet_item)
 
     def get_next_photo_number(self, scelle_path: Path, prefix: str) -> int:
         """Détermine le prochain numéro pour une photo."""
@@ -366,7 +444,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Configuration initiale",
-                "Veuillez sélectionner le dossier contenant vos affaires en cours."
+                "Veuillez sélectionner le dossier contenant vos dossiers en cours."
             )
             self._select_workspace()
         elif not self.config.paths.workspace_path.exists():
@@ -411,11 +489,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Dossier de travail chargé")
 
     def _on_case_selected(self, index: QModelIndex):
-        """Gère la sélection d'une affaire et stocke son chemin."""
+        """Gère la sélection d'une affaire."""
         path = Path(self.cases_model.filePath(index))
         if path.is_dir():
             self.current_case_path = path
             self._load_scelles(path)
+            # Désactive tous les boutons car aucun scellé n'est sélectionné
+            self._disable_photo_buttons()
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
 
     def _create_status_bar(self):
@@ -430,30 +510,38 @@ class MainWindow(QMainWindow):
         if self.config.debug_mode:
             status_bar.addPermanentWidget(QLabel("Mode Debug"))
 
-class CreateScelleDialog(QDialog):
-    """Dialogue pour la création d'un nouveau scellé."""
+    def _organize_photos(self, scelle_path: Path) -> dict:
+        """
+        Organise les photos par catégorie.
+        """
+        photos = {
+            'scelle_ferme': [],
+            'contenu': [],
+            'objets': {},  # Par lettre d'objet
+            'reconditionnement': []
+        }
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Nouveau Scellé")
+        # Parcourt tous les fichiers jpg du dossier
+        for photo in scelle_path.glob('*.jpg'):
+            if '_Ferm' in photo.name:
+                photos['scelle_ferme'].append(photo)
+            elif 'Contenu' in photo.name:
+                photos['contenu'].append(photo)
+            elif '_Reconditionn' in photo.name:
+                photos['reconditionnement'].append(photo)
+            else:
+                # Cherche les photos d'objets - vérifie toutes les parties
+                parts = photo.stem.split('_')
+                # Cherche une partie qui est une seule lettre
+                for part in parts:
+                    if len(part) == 1 and part.isalpha():
+                        if part not in photos['objets']:
+                            photos['objets'][part] = []
+                        photos['objets'][part].append(photo)
+                        break
 
-        # Configuration du layout
-        layout = QFormLayout(self)
+        return photos
 
-        # Champ de saisie
-        self.numero_edit = QLineEdit()
-        layout.addRow("Numéro du scellé:", self.numero_edit)
-
-        # Boutons OK/Cancel
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
-        )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addRow(button_box)
-
-    def get_numero(self) -> Optional[str]:
-        """Retourne le numéro saisi ou None si invalide."""
-        numero = self.numero_edit.text().strip()
-        return numero if numero else None
+    def _on_photos_loaded(self):
+        """Appelé quand le chargement des photos est terminé."""
+        self.scelles_tree.setEnabled(True)
