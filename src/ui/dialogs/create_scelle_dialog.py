@@ -1,11 +1,9 @@
+# src/ui/dialogs/create_scelle_dialog.py
 from PyQt6.QtWidgets import QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QLabel
-from typing import Optional
-
 
 class CreateScelleDialog(QDialog):
     """Dialogue pour la création d'un nouveau scellé."""
 
-    # Caractères interdits dans les noms de fichiers (Windows + Unix)
     FORBIDDEN_CHARS = '<>:"/\\|?*'
 
     def __init__(self, parent=None):
@@ -54,7 +52,6 @@ class CreateScelleDialog(QDialog):
             self.numero_edit.setStyleSheet("")
             self.setToolTip("")
 
-    def get_numero(self) -> Optional[str]:
-        """Retourne le numéro saisi ou None si invalide."""
-        numero = self.numero_edit.text().strip()
-        return numero if numero else None
+    def get_numero(self) -> str:
+        """Retourne le numéro du scellé."""
+        return self.numero_edit.text().strip()

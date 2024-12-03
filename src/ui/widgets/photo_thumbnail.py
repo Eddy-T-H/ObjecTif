@@ -10,7 +10,7 @@ class PhotoThumbnail(QWidget):
     Inclut le nom du fichier et gère les clics.
     """
 
-    clicked = pyqtSignal(Path)
+    clicked = pyqtSignal(Path)        # Signal émis lors du clic
     THUMBNAIL_SIZE = QSize(200, 200)  # Taille fixe pour toutes les miniatures
 
     def __init__(self, photo_path: Path, loading=False, parent=None):

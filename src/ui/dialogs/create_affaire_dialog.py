@@ -1,87 +1,75 @@
+# src/ui/dialogs/create_affaire_dialog.py
 from PyQt6.QtWidgets import (
-    QDialog,
-    QFormLayout,
-    QLineEdit,
-    QDialogButtonBox,
-    QLabel,
-    QMessageBox,
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
+    QLabel, QMessageBox, QVBoxLayout
 )
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class CreateAffaireDialog(QDialog):
-    """
-    Dialogue pour la création d'une nouvelle affaire.
-    Vérifie la validité du nom pour le système de fichiers.
-    """
+    """Dialogue pour la création d'une nouvelle affaire."""
 
-    # Caractères interdits dans les noms de fichiers (Windows + Unix)
     FORBIDDEN_CHARS = '<>:"/\\|?*'
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Nouveau dossier")
-        self.setMinimumWidth(300)
+        self.setWindowTitle("Nouveau Dossier")
+        self.setMinimumWidth(400)
+        self._setup_ui()
 
-        # Configuration du layout
-        layout = QFormLayout(self)
+    def _setup_ui(self):
+        """Configure l'interface du dialogue."""
+        layout = QVBoxLayout(self)
 
-        # Champ de saisie avec validation temps réel
+        # Formulaire principal
+        form_layout = QFormLayout()
+
+        # Champ pour le numéro d'affaire
         self.numero_edit = QLineEdit()
+        self.numero_edit.setPlaceholderText("ex: 2024-001")
         self.numero_edit.textChanged.connect(self._validate_input)
-        layout.addRow("Nom de dossier:", self.numero_edit)
+        form_layout.addRow("Identifiant du dossier:", self.numero_edit)
 
-        # Ajout du texte d'aide
+        layout.addLayout(form_layout)
+
+        # Texte d'aide
         help_text = QLabel(f"Caractères interdits : {self.FORBIDDEN_CHARS}")
         help_text.setStyleSheet("color: gray; font-size: 10pt;")
-        layout.addRow(help_text)
+        layout.addWidget(help_text)
 
         # Boutons OK/Cancel
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.Ok
+        ).setEnabled(False)
 
-        # Le bouton OK est désactivé par défaut
-        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+        layout.addWidget(self.button_box)
 
-        layout.addRow(self.button_box)
+    def _validate_input(self, _):
+        """Valide les champs en temps réel."""
+        numero = self.numero_edit.text().strip()
 
-    def _validate_input(self, text: str):
-        """Vérifie que le texte ne contient pas de caractères interdits."""
-        text = text.strip()
-        has_forbidden = any(char in text for char in self.FORBIDDEN_CHARS)
+        # Vérifie les caractères interdits
+        has_forbidden_numero = any(char in numero for char in self.FORBIDDEN_CHARS)
 
-        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(
-            bool(text) and not has_forbidden
+        # Met à jour les styles visuels
+        self.numero_edit.setStyleSheet(
+            "background-color: #ffe6e6;" if has_forbidden_numero else ""
         )
 
-        if has_forbidden:
-            self.numero_edit.setStyleSheet("background-color: #ffe6e6;")
-            self.setToolTip(f"Caractères interdits: {self.FORBIDDEN_CHARS}")
-        else:
-            self.numero_edit.setStyleSheet("")
-            self.setToolTip("")
+        # Active/désactive le bouton OK
+        is_valid = bool(numero) and not has_forbidden_numero
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.Ok
+        ).setEnabled(is_valid)
 
-    def get_numero(self) -> Optional[str]:
-        """Retourne le numéro saisi nettoyé ou None si invalide."""
-        numero = self.numero_edit.text().strip()
-        return numero if numero else None
-
-    def accept(self):
-        """Validation finale avant acceptation."""
-        numero = self.get_numero()
-        if not numero:
-            QMessageBox.warning(self, "Erreur", "Veuillez entrer un numéro d'UNA.")
-            return
-
-        if any(char in numero for char in self.FORBIDDEN_CHARS):
-            QMessageBox.warning(
-                self,
-                "Erreur",
-                f"Le numéro contient des caractères interdits: {self.FORBIDDEN_CHARS}",
-            )
-            return
-
-        super().accept()
+    def get_data(self) -> Tuple[str]:
+        """Retourne le numéro de l'affaire."""
+        return (
+            self.numero_edit.text().strip(),
+        )

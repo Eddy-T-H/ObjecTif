@@ -22,23 +22,28 @@ def setup_logging(config: AppConfig):
 
     # Définit un format de log lisible et informatif
     log_format = (
-        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "  # Horodatage
-        "<level>{level: <8}</level> | "                 # Niveau de log
-        "<cyan>{name}</cyan>:<cyan>{line}</cyan> - "    # Fichier et ligne
-        "<level>{message}</level>"                      # Message
+        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
     )
 
-    # Configure le logging vers un fichier
+    # Logging vers la console (toujours en DEBUG pour le développement)
     logger.add(
-        config.paths.logs_path / "objectif.log",  # Chemin du fichier
-        rotation="10 MB",                         # Rotation à 10 MB
-        level="DEBUG" if config.debug_mode else "INFO",  # Niveau selon mode
-        format=log_format
+        sys.stderr,
+        level="DEBUG",
+        format=log_format,
+        diagnose=True  # Pour avoir les stack traces
     )
 
-    # Ajoute le logging console en mode debug
-    if config.debug_mode:
-        logger.add(sys.stderr, level="DEBUG", format=log_format)
+    # Logging vers le fichier
+    logger.add(
+        config.paths.logs_path / "objectif.log",
+        rotation="10 MB",
+        level="DEBUG",
+        format=log_format,
+        diagnose=True
+    )
 
 def main():
     """

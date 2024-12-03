@@ -6,61 +6,37 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QGridLayout,
     QLabel,
-    QDialog, QMainWindow,
 )
 from PyQt6.QtGui import QPixmap, QImage, QPalette, QColor
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QObject
 from pathlib import Path
-from typing import Dict, List, Optional
+from loguru import logger
+from enum import Enum, auto
 
 from .photo_loader import PhotoLoaderThread
 from .photo_thumbnail import PhotoThumbnail
+from .photo_viewer_dialog import PhotoViewerDialog
+
+class PhotoFilter(Enum):
+    """Types de filtres disponibles pour les photos."""
+    ALL = "all"
+    SEALED = "scelle_ferme"      # Correspond à la clé dans photos_dict
+    CONTENT = "contenu"          # Correspond à la clé dans photos_dict
+    OBJECTS = "objets"           # Correspond à la clé dans photos_dict
+    RESEALED = "reconditionnement"  # Correspond à la clé dans photos_dict
 
 
-class PhotoViewerDialog(QDialog):
-    """Dialogue pour afficher une photo en grand format."""
-
-    def __init__(self, photo_path: Path, parent=None):
-        super().__init__(parent)
-        self.photo_path = photo_path
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Configure l'interface du dialogue."""
-        self.setWindowTitle(f"{self.photo_path.name} (cliquez pour fermer)")
-        self.setModal(True)
-
-        layout = QVBoxLayout(self)
-
-        # Label pour l'image
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.mousePressEvent = self._on_image_click
-
-        # Charge l'image
-        pixmap = QPixmap(str(self.photo_path))
-
-        # Calcule la taille maximale en gardant les proportions
-        screen = self.screen().geometry()
-        max_size = QSize(int(screen.width() * 0.8), int(screen.height() * 0.8))
-
-        scaled_pixmap = pixmap.scaled(
-            max_size,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-
-        self.image_label.setPixmap(scaled_pixmap)
-        layout.addWidget(self.image_label)
-
-        # Ajuste la taille de la fenêtre
-        self.resize(scaled_pixmap.size())
-
-    def _on_image_click(self, event):
-        """Ferme le dialogue au clic sur l'image."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.close()
-
+    @property
+    def display_name(self) -> str:
+        """Nom à afficher dans l'interface."""
+        DISPLAY_NAMES = {
+            "all": "Toutes",
+            "scelle_ferme": "Scellé fermé",
+            "contenu": "Contenu",
+            "objets": "Objets",
+            "reconditionnement": "Reconditionnement"
+        }
+        return DISPLAY_NAMES[self.value]
 
 class PhotoViewer(QWidget):
     """Widget principal pour la visualisation des photos."""
@@ -68,7 +44,7 @@ class PhotoViewer(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_filter = "all"
+        self.current_filter = PhotoFilter.ALL
         self.photos_dict = {}
         self.loader_thread = None
         self.thumbnails = {}
@@ -85,26 +61,18 @@ class PhotoViewer(QWidget):
         filter_layout.setSpacing(5)
         filter_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Définition des boutons de filtre avec leurs catégories
-        filter_definitions = {
-            'all': ('Toutes', 'all'),
-            'sealed': ('Scellé fermé', 'sealed'),
-            'content': ('Contenu', 'content'),
-            'objects': ('Objets', 'objects'),
-            'resealed': ('Reconditionnement', 'resealed')
-        }
+        # Création des boutons de filtre
         self.filter_buttons = {}
-
-        for key, (label, category) in filter_definitions.items():
-            btn = QPushButton(label)
+        for filter_type in PhotoFilter:
+            btn = QPushButton(filter_type.display_name)
             btn.setCheckable(True)
-            btn.setProperty("filter_category",
-                            category)  # Stocke la catégorie comme propriété
+            btn.setProperty("filter_category", filter_type)
             filter_layout.addWidget(btn)
             btn.clicked.connect(self._on_filter_clicked)
-            self.filter_buttons[key] = btn
+            self.filter_buttons[filter_type] = btn
 
-        self.filter_buttons['all'].setChecked(True)
+        # Activer le filtre "Toutes" par défaut
+        self.filter_buttons[PhotoFilter.ALL].setChecked(True)
         layout.addWidget(filter_container)
 
         # Zone de défilement avec style adaptatif
@@ -133,21 +101,28 @@ class PhotoViewer(QWidget):
 
     def load_photos(self, photos_dict: dict):
         """Charge les photos dans la grille."""
+        logger.debug("Début de load_photos")
+        logger.debug(f"Photos reçues: {photos_dict}")
+
         self.photos_dict = photos_dict
         self._refresh_grid()
+        logger.debug("_refresh_grid appelé")
 
     def _refresh_grid(self):
         """Rafraîchit l'affichage de la grille selon le filtre actuel."""
+        logger.debug(f"Début de _refresh_grid avec le filtre: {self.current_filter}")
+
         # Désactive les boutons pendant le chargement
         for btn in self.filter_buttons.values():
             btn.setEnabled(False)
 
         # Arrête le thread précédent s'il existe
         if self.loader_thread and self.loader_thread.isRunning():
+            logger.debug("Arrêt du thread précédent")
             self.loader_thread.stop()
             self.loader_thread.wait()
 
-        # Efface la grille
+        # Efface la grille existante
         for i in reversed(range(self.grid_layout.count())):
             widget = self.grid_layout.itemAt(i).widget()
             if widget:
@@ -157,60 +132,67 @@ class PhotoViewer(QWidget):
         # Vide le dictionnaire des miniatures
         self.thumbnails.clear()
 
-        # Détermine les photos à afficher selon le filtre
+        # Collecte les photos selon le filtre
         photos_to_show = []
-        if self.current_filter == "all":
-            for category, photos in self.photos_dict.items():
-                if isinstance(photos, list):
-                    photos_to_show.extend(photos)
-                elif isinstance(photos, dict):
-                    for letter_photos in photos.values():
-                        photos_to_show.extend(letter_photos)
-        else:
-            category_map = {
-                "sealed": "scelle_ferme",
-                "content": "contenu",
-                "objects": "objets",
-                "resealed": "reconditionnement",
-            }
-            category = category_map.get(self.current_filter)
-            if category in self.photos_dict:
-                photos = self.photos_dict[category]
-                if isinstance(photos, list):
-                    photos_to_show.extend(photos)
-                elif isinstance(photos, dict):
-                    for letter_photos in photos.values():
-                        photos_to_show.extend(letter_photos)
 
-        if not photos_to_show:
-            # Réactive les boutons car pas de chargement nécessaire
-            for btn in self.filter_buttons.values():
-                btn.setEnabled(True)
-            empty_label = QLabel("Aucune photo dans cette catégorie")
-            empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.grid_layout.addWidget(empty_label, 0, 0)
-            return
+        try:
+            if self.current_filter == PhotoFilter.ALL:
+                photos_to_show.extend(self.photos_dict.get('scelle_ferme', []))
+                photos_to_show.extend(self.photos_dict.get('contenu', []))
+                for object_photos in self.photos_dict.get('objets', {}).values():
+                    photos_to_show.extend(object_photos)
+                photos_to_show.extend(self.photos_dict.get('reconditionnement', []))
+            elif self.current_filter == PhotoFilter.SEALED:
+                photos_to_show.extend(self.photos_dict.get('scelle_ferme', []))
+            elif self.current_filter == PhotoFilter.CONTENT:
+                photos_to_show.extend(self.photos_dict.get('contenu', []))
+            elif self.current_filter == PhotoFilter.OBJECTS:
+                for object_photos in self.photos_dict.get('objets', {}).values():
+                    photos_to_show.extend(object_photos)
+            elif self.current_filter == PhotoFilter.RESEALED:
+                photos_to_show.extend(self.photos_dict.get('reconditionnement', []))
 
-        # Ajoute les miniatures à la grille
-        row = col = 0
-        max_cols = 4
+            logger.debug(
+                f"Photos trouvées pour le filtre {self.current_filter}: {len(photos_to_show)}")
 
-        for photo_path in photos_to_show:
-            thumb = PhotoThumbnail(photo_path, loading=True)
-            thumb.clicked.connect(self._on_thumbnail_clicked)
-            self.thumbnails[str(photo_path)] = thumb
-            self.grid_layout.addWidget(thumb, row, col)
+            if not photos_to_show:
+                logger.debug("Aucune photo à afficher")
+                empty_label = QLabel("Aucune photo dans cette catégorie")
+                empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.grid_layout.addWidget(empty_label, 0, 0)
 
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
+                # Réactive les boutons car pas de chargement nécessaire
+                for btn in self.filter_buttons.values():
+                    btn.setEnabled(True)
 
-        # Lance le thread de chargement
-        self.loader_thread = PhotoLoaderThread(photos_to_show)
-        self.loader_thread.photo_loaded.connect(self._update_thumbnail)
-        self.loader_thread.finished.connect(self._loading_finished)
-        self.loader_thread.start()
+                self.loading_finished.emit()
+                return
+
+            # Crée les vignettes pour toutes les photos
+            row = col = 0
+            max_cols = 4
+
+            for photo_path in photos_to_show:
+                thumb = PhotoThumbnail(Path(photo_path), loading=True)
+                thumb.clicked.connect(self._on_thumbnail_clicked)
+                self.thumbnails[str(photo_path)] = thumb
+                self.grid_layout.addWidget(thumb, row, col)
+
+                col += 1
+                if col >= max_cols:
+                    col = 0
+                    row += 1
+
+            # Lance le thread de chargement
+            logger.debug("Démarrage du thread de chargement")
+            self.loader_thread = PhotoLoaderThread(photos_to_show)
+            self.loader_thread.photo_loaded.connect(self._update_thumbnail)
+            self.loader_thread.finished.connect(self._loading_finished)
+            self.loader_thread.start()
+
+        except Exception as e:
+            logger.exception("Erreur lors du rafraîchissement de la grille")
+            self.loading_finished.emit()
 
     def _on_filter_clicked(self):
         """Gère le clic sur un bouton de filtre."""
@@ -245,12 +227,12 @@ class PhotoViewer(QWidget):
 
     def _loading_finished(self):
         """Appelé quand toutes les photos sont chargées."""
-        self.loader_thread = None
-        # Réactive les boutons
+        logger.debug("Signal _loading_finished reçu dans PhotoViewer")
+        # Réactive les boutons de filtre
         for btn in self.filter_buttons.values():
             btn.setEnabled(True)
-        # Réactive l'arbre des scellés
-        # Émet le signal
+        self.loader_thread = None
+        logger.debug("Emission du signal loading_finished")
         self.loading_finished.emit()
 
     def is_loading(self) -> bool:
