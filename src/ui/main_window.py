@@ -7,10 +7,12 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTreeView, QLabel, QPushButton, QFileDialog,
     QStatusBar, QMessageBox, QSplitter, QGroupBox, QTreeWidget, QTreeWidgetItem,
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QTabWidget
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QTabWidget, QPlainTextEdit,
+    QFrame, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
-from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem, QColor, \
+    QTextCursor, QPalette
 from pathlib import Path
 from loguru import logger
 from typing import Optional, Dict, List
@@ -18,12 +20,21 @@ from src.config import AppConfig
 
 from .dialogs.create_affaire_dialog import CreateAffaireDialog
 from .dialogs.create_scelle_dialog import CreateScelleDialog
+from .widgets.adb_status import ADBStatusWidget
+
+from .widgets.phone_preview import PhonePreviewWidget
 from .widgets.photo_viewer import PhotoViewer
+from .widgets.stream_display import InteractiveStreamDisplay
 from ..core.evidence.base import EvidenceItem
 from ..core.evidence.naming import PhotoType
 from ..core.evidence.objet import ObjetEssai
 from ..core.evidence.scelle import Scelle
 
+from src.ui.constants import (
+    ANDROID_SCREEN_WIDTH,
+    ANDROID_SCREEN_HEIGHT,
+    FRAME_PADDING
+)
 
 class MainWindow(QMainWindow):
 
@@ -32,7 +43,7 @@ class MainWindow(QMainWindow):
     Gère l'interface utilisateur et coordonne les différentes fonctionnalités.
     """
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, log_buffer):
         """
         Initialise la fenêtre principale.
 
@@ -41,6 +52,7 @@ class MainWindow(QMainWindow):
         """
         super().__init__()
         self.config = config
+        self.log_buffer = log_buffer  # Stocke le buffer
 
         # Gestionnaires de preuves
         self.scelle_manager: Optional[Scelle] = None
@@ -64,22 +76,168 @@ class MainWindow(QMainWindow):
         self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
 
     def _setup_ui(self):
-        """Configure l'interface utilisateur complète avec tous ses composants."""
-        # Widget central avec disposition horizontale pour diviser gauche/droite
+        """Configure l'interface utilisateur complète."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(8)
 
-        # --- PANNEAU GAUCHE ---
+        # Splitter vertical principal avec style minimal
+        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        main_splitter.setChildrenCollapsible(False)  # Empêche de réduire à zéro
+
+        # Widget supérieur contenant l'interface principale
+        upper_widget = QWidget()
+        upper_layout = QHBoxLayout(upper_widget)
+        upper_layout.setContentsMargins(0, 0, 0, 0)
+        upper_layout.setSpacing(8)
+
+        # === PANNEAU GAUCHE (Arborescences) ===
         left_panel = self._setup_left_panel()
-        main_layout.addWidget(left_panel, stretch=1)  # stretch=1 pour la proportion
+        left_panel.setMinimumWidth(280)
+        left_panel.setMaximumWidth(400)
+        upper_layout.addWidget(left_panel)
 
-        # --- PANNEAU DROIT ---
-        right_panel = self._setup_right_panel()
-        main_layout.addWidget(right_panel, stretch=2)  # stretch=2 pour donner plus d'espace
+        # === PANNEAU CENTRAL (Android) ===
+        center_frame = QFrame()
+        center_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        # Taille fixe basée sur les dimensions de l'écran + padding
+        center_frame.setFixedWidth(ANDROID_SCREEN_WIDTH + 2 * FRAME_PADDING)
 
-        # Création de la barre d'état
-        self._create_status_bar()
+        center_layout = QVBoxLayout(center_frame)
+        center_layout.setContentsMargins(FRAME_PADDING, FRAME_PADDING,
+                                         FRAME_PADDING, FRAME_PADDING)
+        center_layout.setSpacing(8)
+        center_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # Widget d'état ADB
+        self.adb_status = ADBStatusWidget()
+        self.adb_status.setFixedHeight(100)
+        self.adb_status.setFixedWidth(ANDROID_SCREEN_WIDTH)
+        self.adb_status.connection_changed.connect(self._on_adb_connection_changed)
+        center_layout.addWidget(self.adb_status)
+
+        # Container pour l'écran Android
+        screen_container = QWidget()
+        screen_container.setFixedSize(ANDROID_SCREEN_WIDTH, ANDROID_SCREEN_HEIGHT)
+        screen_layout = QVBoxLayout(screen_container)
+        screen_layout.setContentsMargins(0, 0, 0, 0)
+        screen_layout.setSpacing(0)
+
+        # Widget de streaming Android
+        self.phone_preview = InteractiveStreamDisplay(self.adb_status.adb_manager)
+        screen_layout.addWidget(self.phone_preview)
+
+        center_layout.addWidget(screen_container)
+
+        # Groupe des boutons d'action photos avec taille fixe
+        actions_group = QGroupBox("Actions Photos")
+        actions_group.setFixedWidth(ANDROID_SCREEN_WIDTH)
+        actions_layout = QVBoxLayout(actions_group)
+        actions_layout.setSpacing(6)
+
+        self.btn_photo_ferme = QPushButton("Photo Scellé Fermé")
+        self.btn_photo_content = QPushButton("Photo Contenu")
+        self.btn_photo_objet = QPushButton("Photo Objet d'Essai")
+        self.btn_photo_recond = QPushButton("Photo Reconditionnement")
+
+        self.photo_buttons = {
+            "ferme": self.btn_photo_ferme,
+            "contenu": self.btn_photo_content,
+            "objet": self.btn_photo_objet,
+            "recond": self.btn_photo_recond
+        }
+
+        for photo_type, btn in self.photo_buttons.items():
+            btn.setEnabled(False)
+            btn.clicked.connect(lambda checked, t=photo_type: self._take_photo(t))
+            actions_layout.addWidget(btn)
+
+        actions_group.setLayout(actions_layout)
+        center_layout.addWidget(actions_group)
+
+        upper_layout.addWidget(center_frame)
+
+        # === PANNEAU DROIT (Photos) ===
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        self.photo_viewer = PhotoViewer()
+        right_layout.addWidget(self.photo_viewer)
+        upper_layout.addWidget(right_panel, stretch=1)
+
+        main_splitter.addWidget(upper_widget)
+
+        # === TERMINAL DE LOGS ===
+        class ColoredLogViewer(QPlainTextEdit):
+            """Terminal avec coloration syntaxique pour les logs."""
+
+            def __init__(self):
+                super().__init__()
+                self.setReadOnly(True)
+                self.setMaximumHeight(200)
+                self.setMinimumHeight(100)
+                self.document().setMaximumBlockCount(5000)  # Limite le nombre de lignes
+
+            def append_log(self, message, level="INFO"):
+                cursor = self.textCursor()
+                format = self.currentCharFormat()
+
+                # Utilise QPalette pour les couleurs système
+                if level == "DEBUG":
+                    format.setForeground(
+                        self.palette().color(QPalette.ColorRole.PlaceholderText))
+                elif level == "WARNING":
+                    format.setForeground(QColor(255, 165, 0))  # Orange
+                elif level == "ERROR" or level == "CRITICAL":
+                    format.setForeground(QColor(255, 0, 0))  # Rouge
+                else:  # INFO et autres
+                    format.setForeground(self.palette().color(QPalette.ColorRole.Text))
+
+                cursor.movePosition(QTextCursor.MoveOperation.End)
+                cursor.insertText(f"{message}\n", format)
+                self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
+
+            def load_initial_logs(self, buffer):
+                """Charge les logs du buffer dans l'interface."""
+                for message in buffer.logs:
+                    self.append_log(message)
+
+        log_viewer = ColoredLogViewer()
+        log_viewer.load_initial_logs(self.log_buffer)
+
+        # Handler personnalisé pour Loguru
+        class QtHandler:
+            def __init__(self, widget):
+                self.widget = widget
+
+            def write(self, message):
+                try:
+                    # Extrait le niveau de log
+                    level = "INFO"
+                    for possible_level in ["DEBUG", "INFO", "WARNING", "ERROR",
+                                           "CRITICAL"]:
+                        if possible_level in message:
+                            level = possible_level
+                            break
+                    self.widget.append_log(message.strip(), level)
+                except Exception as e:
+                    print(f"Erreur dans le handler de log: {e}")
+
+        logger.add(QtHandler(log_viewer).write,
+                   format="{time:HH:mm:ss} | {level: <8} | {message}")
+        main_splitter.addWidget(log_viewer)
+
+
+
+        # Ajout du splitter principal au layout
+        main_layout.addWidget(main_splitter)
+
+        # Configure les proportions initiales du splitter
+        main_splitter.setStretchFactor(0, 4)
+        main_splitter.setStretchFactor(1, 1)
+
 
     def _setup_left_panel(self):
         """
@@ -90,6 +248,12 @@ class MainWindow(QMainWindow):
         """
         panel  = QWidget()
         layout  = QVBoxLayout(panel)
+
+        # # Force une largeur minimale et fixe pour le panneau
+        # panel.setMinimumWidth(280)
+        # panel.setMaximumWidth(400)
+        # panel.setSizePolicy(QSizePolicy.Policy.Fixed,
+        #                     QSizePolicy.Policy.Preferred)  # Empêche le redimensionnement
 
         # Section du dossier de travail (inchangée)
         workspace_widget = QWidget()
@@ -190,14 +354,18 @@ class MainWindow(QMainWindow):
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
+        # Widget d'état ADB en haut
+        self.adb_status = ADBStatusWidget()
+        self.adb_status.connection_changed.connect(self._on_adb_connection_changed)
+        right_layout.addWidget(self.adb_status)
+
         # Création des onglets
         preview_tabs = QTabWidget()
 
-        # Onglet Preview (zone noire actuelle)
-        preview_widget = QWidget()
-        preview_widget.setMinimumSize(400, 300)
-        preview_widget.setStyleSheet("background-color: black;")
-        preview_tabs.addTab(preview_widget, "Preview")
+        # Onglet Preview avec le widget de prévisualisation du téléphone
+        self.phone_preview = InteractiveStreamDisplay(self.adb_status.adb_manager)
+        preview_tabs.addTab(self.phone_preview, "Preview")
+
 
         # Onglet Photos
         self.photo_viewer = PhotoViewer()
@@ -209,18 +377,25 @@ class MainWindow(QMainWindow):
         actions_group = QGroupBox("Actions Photos")
         actions_layout = QVBoxLayout()
 
-        # Création des boutons
+        # Création des boutons individuellement
         self.btn_photo_ferme = QPushButton("Photo Scellé Fermé")
         self.btn_photo_content = QPushButton("Photo Contenu")
         self.btn_photo_objet = QPushButton("Photo Objet d'Essai")
         self.btn_photo_recond = QPushButton("Photo Reconditionnement")
 
+        # Dictionnaire des boutons
+        self.photo_buttons = {
+            "ferme": self.btn_photo_ferme,
+            "contenu": self.btn_photo_content,
+            "objet": self.btn_photo_objet,
+            "recond": self.btn_photo_recond
+        }
+
         # Configuration des boutons
-        for btn in [self.btn_photo_ferme, self.btn_photo_content,
-                    self.btn_photo_objet, self.btn_photo_recond]:
-            btn.setEnabled(False)  # Désactivés par défaut
+        for photo_type, btn in self.photo_buttons.items():
+            btn.setEnabled(False)
+            btn.clicked.connect(lambda checked, t=photo_type: self._take_photo(t))
             actions_layout.addWidget(btn)
-            # TODO: Connecter les boutons à leurs actions respectives
 
         actions_group.setLayout(actions_layout)
         right_layout.addWidget(actions_group)
@@ -643,3 +818,68 @@ class MainWindow(QMainWindow):
         )
         if self.config.debug_mode:
             status_bar.addPermanentWidget(QLabel("Mode Debug"))
+
+
+    def _on_adb_connection_changed(self, is_connected: bool):
+        """Gère les changements d'état de la connexion ADB."""
+        if is_connected and self.adb_status.preview_active:
+            self.phone_preview.start_stream()
+            self._update_photo_buttons()
+        else:
+            self.phone_preview.stop_stream()
+            self._disable_photo_buttons()
+
+
+    def _update_photo_buttons(self):
+        """Met à jour l'état des boutons photo selon le contexte."""
+        can_take_photos = (
+                self.adb_status.adb_manager.is_connected() and
+                self.current_scelle is not None
+        )
+
+        self.btn_photo_ferme.setEnabled(can_take_photos)
+        self.btn_photo_content.setEnabled(can_take_photos)
+        self.btn_photo_recond.setEnabled(can_take_photos)
+        # Le bouton photo d'objet nécessite un objet sélectionné
+        self.btn_photo_objet.setEnabled(
+            can_take_photos and self.current_object is not None
+        )
+
+
+    def _take_photo(self, photo_type: str):
+        """
+        Prend une photo avec l'appareil connecté.
+
+        Args:
+            photo_type: Type de photo à prendre
+        """
+        if not self.adb_status.adb_manager.is_connected():
+            return
+
+        try:
+            # Configure le chemin de sauvegarde selon le type
+            if photo_type == "objet" and not self.current_object:
+                return
+
+            # Détermine le nom de fichier
+            next_num = self.get_next_photo_number(
+                self.current_scelle,
+                photo_type if photo_type != "objet" else self.current_object
+            )
+
+            save_path = (
+                    self.current_scelle /
+                    f"{photo_type}_{next_num}.jpg"
+            )
+
+            # Prend la photo
+            if self.adb_status.adb_manager.take_photo(save_path):
+                self.statusBar().showMessage(f"Photo sauvegardée: {save_path.name}")
+                # Rafraîchit l'affichage des photos
+                self._refresh_photos()
+            else:
+                self.statusBar().showMessage("Erreur lors de la prise de photo")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de la prise de photo: {e}")
+            self.statusBar().showMessage("Erreur lors de la prise de photo")
