@@ -77,6 +77,9 @@ class MainWindow(QMainWindow):
 
         self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
 
+        # Connecte le signal de changement de connexion
+        self.adb_status.connection_changed.connect(self._update_photo_buttons)
+
     def _initialize_ui(self):
         """Initialise l'interface utilisateur principale."""
         # Widget central
@@ -515,7 +518,7 @@ class MainWindow(QMainWindow):
                 photos_dict = self._organize_photos()
 
                 # Met à jour l'interface
-                self._enable_photo_buttons()
+                self._update_photo_buttons()
                 self._load_existing_objects()
                 self.add_object_btn.setEnabled(True)
                 self.photo_viewer.load_photos(photos_dict)
@@ -645,9 +648,7 @@ class MainWindow(QMainWindow):
         object_id = item.data(0, Qt.ItemDataRole.UserRole)
         if object_id:
             self.current_object = object_id
-            # Active tous les boutons photo, y compris celui des objets
-            self._enable_photo_buttons()
-            self.btn_photo_objet.setEnabled(True)
+            self._update_photo_buttons()
             logger.debug(f"Objet sélectionné: {object_id}")
             self.statusBar().showMessage(f"Objet {object_id} sélectionné")
 
@@ -700,28 +701,6 @@ class MainWindow(QMainWindow):
                 self.cases_model.index(str(self.config.paths.workspace_path))
             )
             self.statusBar().showMessage("Dossier de travail chargé")
-
-    def _enable_scelle_photo_buttons(self):
-        """
-        Active les boutons de photos du scellé.
-        Les photos du scellé sont disponibles dès qu'un scellé est sélectionné.
-        """
-        self.btn_photo_ferme.setEnabled(True)
-        self.btn_photo_content.setEnabled(True)
-        self.btn_photo_recond.setEnabled(True)
-        self.btn_photo_objet.setEnabled(False)  # Désactivé jusqu'à sélection d'un objet
-
-    def _enable_object_photo_buttons(self):
-        """
-        Active les boutons quand un objet est sélectionné.
-        Les photos du scellé parent restent disponibles.
-        """
-        # On garde les boutons du scellé actifs
-        self.btn_photo_ferme.setEnabled(True)
-        self.btn_photo_content.setEnabled(True)
-        self.btn_photo_recond.setEnabled(True)
-        # On active en plus la photo d'objet
-        self.btn_photo_objet.setEnabled(True)
 
     def _disable_photo_buttons(self):
         """Désactive tous les boutons photo."""
@@ -791,20 +770,31 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
 
     def _update_photo_buttons(self):
-        """Met à jour l'état des boutons photo selon le contexte."""
-        can_take_photos = (
-                self.adb_manager.is_connected() and
-                self.current_scelle is not None
-        )
+        """
+        Met à jour l'état des boutons photo selon le contexte actuel.
+        Suit une logique progressive :
+        1. Le bouton appareil photo ne dépend que de la connexion Android
+        2. Les boutons de scellé nécessitent connexion + scellé sélectionné
+        3. Le bouton d'objet nécessite connexion + scellé + objet sélectionné
+        """
+        # Vérifie d'abord la connexion Android
+        android_connected = self.adb_manager.is_connected()
 
-        self.btn_photo_ferme.setEnabled(can_take_photos)
-        self.btn_photo_content.setEnabled(can_take_photos)
-        self.btn_photo_recond.setEnabled(can_take_photos)
-        # Le bouton photo d'objet nécessite un objet sélectionné
+        # Le bouton d'appareil photo ne dépend que de la connexion
+        self.btn_open_camera.setEnabled(android_connected)
+
+        # Pour les boutons de scellé, il faut la connexion ET un scellé sélectionné
+        scelle_buttons_enabled = android_connected and self.current_scelle is not None
+        self.btn_photo_ferme.setEnabled(scelle_buttons_enabled)
+        self.btn_photo_content.setEnabled(scelle_buttons_enabled)
+        self.btn_photo_recond.setEnabled(scelle_buttons_enabled)
+
+        # Pour le bouton d'objet, il faut la connexion ET un objet sélectionné
         self.btn_photo_objet.setEnabled(
-            can_take_photos and self.current_object is not None
+            android_connected and
+            self.current_scelle is not None and
+            self.current_object is not None
         )
-
 
     def _take_photo(self, photo_type: str):
         """
