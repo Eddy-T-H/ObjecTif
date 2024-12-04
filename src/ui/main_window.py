@@ -31,6 +31,8 @@ from ..core.evidence.naming import PhotoType
 from ..core.evidence.objet import ObjetEssai
 from ..core.evidence.scelle import Scelle
 
+import subprocess
+
 class MainWindow(QMainWindow):
 
     """
@@ -205,26 +207,56 @@ class MainWindow(QMainWindow):
         return right_panel
 
     def _open_camera(self):
-        """Ouvre l'application appareil photo sur le téléphone Android."""
+        """
+        Ouvre l'application appareil photo sur le téléphone Android.
+        Gère d'abord le déverrouillage de l'appareil avant de lancer l'application.
+        """
         try:
             if not self.adb_manager.is_connected():
                 logger.warning("Pas de connexion ADB active")
+                self.statusBar().showMessage("Erreur : Aucun appareil connecté")
                 return
 
-            # Commande ADB pour ouvrir l'appareil photo
-            command = f'"{self.adb_manager.adb_command}" -s {self.adb_manager.current_device} shell am start -a android.media.action.STILL_IMAGE_CAMERA'
+            # Séquence de déverrouillage
+            # 1. Réveille l'appareil
+            wake_command = f'"{self.adb_manager.adb_command}" -s {self.adb_manager.current_device} shell input keyevent KEYCODE_WAKEUP'
+            subprocess.run(wake_command, shell=True, capture_output=True, text=True,
+                           timeout=2)
 
-            # Exécute la commande
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            # 2. Un petit délai pour laisser l'écran s'allumer
+            import time
+            time.sleep(0.5)
+
+            # 3. Simule le glissement vers le haut pour déverrouiller
+            # Les coordonnées sont en pourcentage de l'écran (50% horizontal, du bas vers 40% vertical)
+            unlock_command = f'"{self.adb_manager.adb_command}" -s {self.adb_manager.current_device} shell input swipe 500 1800 500 1000'
+            subprocess.run(unlock_command, shell=True, capture_output=True, text=True,
+                           timeout=2)
+
+            # 4. Petit délai pour laisser l'animation de déverrouillage se terminer
+            time.sleep(0.5)
+
+            # Maintenant on peut ouvrir l'appareil photo
+            camera_command = f'"{self.adb_manager.adb_command}" -s {self.adb_manager.current_device} shell am start -a android.media.action.STILL_IMAGE_CAMERA'
+            result = subprocess.run(camera_command, shell=True, capture_output=True,
+                                    text=True, timeout=5)
 
             if result.returncode == 0:
                 logger.info("Application appareil photo ouverte avec succès")
+                self.statusBar().showMessage("Appareil photo ouvert")
             else:
-                logger.error(
-                    f"Erreur lors de l'ouverture de l'appareil photo: {result.stderr}")
+                error_msg = f"Erreur lors de l'ouverture de l'appareil photo: {result.stderr}"
+                logger.error(error_msg)
+                self.statusBar().showMessage(error_msg)
 
+        except subprocess.TimeoutExpired:
+            error_msg = "Timeout lors de l'ouverture de l'appareil photo"
+            logger.error(error_msg)
+            self.statusBar().showMessage(error_msg)
         except Exception as e:
-            logger.error(f"Erreur lors de l'ouverture de l'appareil photo: {e}")
+            error_msg = f"Erreur lors de l'ouverture de l'appareil photo: {e}"
+            logger.error(error_msg)
+            self.statusBar().showMessage(error_msg)
 
     def _setup_lower_area(self) -> QWidget:
         """Configure la zone inférieure de l'interface."""

@@ -30,6 +30,7 @@ class StreamWindow(QObject):
             self.parent = parent
             self.scrcpy_process = None
             self._process_starting = False  # Flag pour éviter les lancements multiples
+            self._stopping_manually = False
 
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation de StreamWindow: {e}")
