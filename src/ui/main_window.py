@@ -617,7 +617,8 @@ class MainWindow(QMainWindow):
     def _add_new_object(self):
         """
         Ajoute un nouvel objet au scellé actuel.
-        Trouve automatiquement la prochaine lettre disponible.
+        Attribue automatiquement le prochain code alphabétique disponible.
+        La séquence suit le modèle Excel : A, B, C... Z, AA, AB, AC...
         """
         logger.debug("Ajout d'un nouvel objet")
 
@@ -626,38 +627,31 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            # Trouve la prochaine lettre disponible
-            existing = self.objet_manager.get_existing_objects()
-            if not existing:
-                next_letter = 'A'
-            else:
-                last_letter = existing[-1]
-                if ord(last_letter) >= ord('Z'):
-                    raise ValueError("Plus de lettres disponibles")
-                next_letter = chr(ord(last_letter) + 1)
-
-            logger.debug(f"Nouvelle lettre: {next_letter}")
+            # Utilise la méthode publique au lieu d'accéder directement à la méthode protégée
+            next_code = self.objet_manager.get_next_available_code()
+            logger.debug(f"Création de l'objet avec le code {next_code}")
 
             # Crée le nouvel objet
             item = self.objet_manager.create_item(
-                item_id=next_letter,
-                name=f"Objet {next_letter}"
+                item_id=next_code,
+                name=f"Objet {next_code}"
             )
 
             # Met à jour l'interface
-            tree_item = QTreeWidgetItem([f"{self.current_scelle.name}_{next_letter}"])
-            tree_item.setData(0, Qt.ItemDataRole.UserRole, next_letter)
+            tree_item = QTreeWidgetItem([f"{self.current_scelle.name}_{next_code}"])
+            tree_item.setData(0, Qt.ItemDataRole.UserRole, next_code)
             self.objects_list.addTopLevelItem(tree_item)
 
             # Sélectionne le nouvel objet
             self.objects_list.setCurrentItem(tree_item)
             self._on_object_selected(tree_item)
 
-            logger.info(f"Objet {next_letter} créé")
+            logger.info(f"Nouvel objet {next_code} créé avec succès")
 
         except Exception as e:
             logger.error(f"Erreur lors de la création de l'objet: {e}")
             QMessageBox.warning(self, "Erreur", str(e))
+
 
     def _enable_photo_buttons(self):
         """Active les boutons photo selon le contexte."""
@@ -789,17 +783,50 @@ class MainWindow(QMainWindow):
         if self.config.paths.workspace_path:
             self.workspace_label.setText(str(self.config.paths.workspace_path))
 
-
     def _on_case_selected(self, index: QModelIndex):
-        """Gère la sélection d'une affaire."""
+        """
+        Gère la sélection d'une affaire.
+        Réinitialise l'interface pour commencer proprement avec la nouvelle affaire.
+        """
         path = Path(self.cases_model.filePath(index))
         if path.is_dir():
+            # Réinitialise l'état
             self.current_case_path = path
-            # Initialise le gestionnaire de scellés pour cette affaire
+            self.current_scelle = None  # Réinitialise le scellé sélectionné
+            self.current_object = None  # Réinitialise l'objet sélectionné
+
+            # Réinitialise les gestionnaires
             self.scelle_manager = Scelle(path)
+            self.objet_manager = None  # Réinitialise le gestionnaire d'objets
+
+            # Nettoie l'interface
+            self.objects_list.clear()  # Vide la liste des objets
+            self.photo_viewer.load_photos({  # Réinitialise l'affichage des photos
+                'scelle_ferme': [],
+                'contenu': [],
+                'objets': {},
+                'reconditionnement': []
+            })
+
+            # Met à jour les autres éléments de l'interface
             self._load_scelles(path)
             self._disable_photo_buttons()
+            self.add_object_btn.setEnabled(False)  # Désactive le bouton d'ajout d'objet
+
+            # Mise à jour de la barre de statut
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
+            logger.info(f"Changement d'affaire : {path.name}")
+
+    # def _on_case_selected(self, index: QModelIndex):
+    #     """Gère la sélection d'une affaire."""
+    #     path = Path(self.cases_model.filePath(index))
+    #     if path.is_dir():
+    #         self.current_case_path = path
+    #         # Initialise le gestionnaire de scellés pour cette affaire
+    #         self.scelle_manager = Scelle(path)
+    #         self._load_scelles(path)
+    #         self._disable_photo_buttons()
+    #         self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
 
     def _update_photo_buttons(self):
         """
