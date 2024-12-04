@@ -4,18 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
-      <change afterPath="$PROJECT_DIR$/src/core/device/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/core/device/adb_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ui/constants.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ui/widgets/phone_preview.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ui/widgets/stream_display.py" afterDir="false" />
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Poursuite dev, ajout adb et scrcpy">
+      <change afterPath="$PROJECT_DIR$/src/ui/widgets/log_viewer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/widgets/stream_window.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/adb_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/phone_preview.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/stream_display.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,6 +53,7 @@
   "keyToString": {
     "Python.adb_manager.executor": "Run",
     "Python.config.executor": "Debug",
+    "Python.log_viewer.executor": "Run",
     "Python.main.executor": "Run",
     "Python.main_window.executor": "Run",
     "Python.setup.executor": "Run",
@@ -101,7 +98,8 @@
       <workItem from="1732807336331" duration="6595000" />
       <workItem from="1732864396368" duration="15632000" />
       <workItem from="1732893016599" duration="3453000" />
-      <workItem from="1733129113655" duration="38424000" />
+      <workItem from="1733129113655" duration="38747000" />
+      <workItem from="1733302295208" duration="14472000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -111,7 +109,15 @@
       <option name="project" value="LOCAL" />
       <updated>1733217227217</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Poursuite dev, ajout adb et scrcpy">
+      <option name="closed" value="true" />
+      <created>1733244926692</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1733244926692</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -119,14 +125,16 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Poursuite dev&#10;Refactorisation propre du code (en théorie)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Poursuite dev&#10;Refactorisation propre du code (en théorie)" />
+    <MESSAGE value="Poursuite dev, ajout adb et scrcpy" />
+    <option name="LAST_COMMIT_MESSAGE" value="Poursuite dev, ajout adb et scrcpy" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1733244622025" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1733324027118" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1732868629670" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1733303867401" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/ObjecTif$setup.coverage" NAME="setup Coverage Results" MODIFIED="1733222450935" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/ObjecTif$log_viewer.coverage" NAME="log_viewer Coverage Results" MODIFIED="1733303901896" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/widgets" />
   </component>
 </project>

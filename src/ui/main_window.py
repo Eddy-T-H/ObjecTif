@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTreeView, QLabel, QPushButton, QFileDialog,
     QStatusBar, QMessageBox, QSplitter, QGroupBox, QTreeWidget, QTreeWidgetItem,
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QTabWidget, QPlainTextEdit,
-    QFrame, QSizePolicy
+    QFrame, QSizePolicy, QDockWidget
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem, QColor, \
@@ -21,20 +21,15 @@ from src.config import AppConfig
 from .dialogs.create_affaire_dialog import CreateAffaireDialog
 from .dialogs.create_scelle_dialog import CreateScelleDialog
 from .widgets.adb_status import ADBStatusWidget
+from .widgets.log_viewer import ColoredLogViewer, QtHandler
 
-from .widgets.phone_preview import PhonePreviewWidget
 from .widgets.photo_viewer import PhotoViewer
-from .widgets.stream_display import InteractiveStreamDisplay
+from .widgets.stream_window import StreamWindow
+from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
 from ..core.evidence.naming import PhotoType
 from ..core.evidence.objet import ObjetEssai
 from ..core.evidence.scelle import Scelle
-
-from src.ui.constants import (
-    ANDROID_SCREEN_WIDTH,
-    ANDROID_SCREEN_HEIGHT,
-    FRAME_PADDING
-)
 
 class MainWindow(QMainWindow):
 
@@ -54,6 +49,9 @@ class MainWindow(QMainWindow):
         self.config = config
         self.log_buffer = log_buffer  # Stocke le buffer
 
+        # Créer une seule instance d'ADBManager qui sera partagée
+        self.adb_manager = ADBManager()
+
         # Gestionnaires de preuves
         self.scelle_manager: Optional[Scelle] = None
         self.objet_manager: Optional[ObjetEssai] = None
@@ -63,10 +61,14 @@ class MainWindow(QMainWindow):
         self.current_scelle: Optional[EvidenceItem] = None
         self.current_object: Optional[str] = None
 
+        # Initialisation des composants de l'interface
+        self.stream_window = None  # Sera initialisé dans _setup_stream_dock
+        self.stream_dock = None    # Sera initialisé dans _initialize_ui
+
         self.setWindowTitle(f"{config.app_name} v{config.app_version}")
         self.setMinimumSize(1024, 768)
-
-        self._setup_ui()
+        # Initialisation de l'interface
+        self._initialize_ui()
         self._check_workspace()
         self._update_workspace_label()
 
@@ -75,68 +77,108 @@ class MainWindow(QMainWindow):
 
         self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
 
-    def _setup_ui(self):
-        """Configure l'interface utilisateur complète."""
+    def _initialize_ui(self):
+        """Initialise l'interface utilisateur principale."""
+        # Widget central
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
-        # Splitter vertical principal avec style minimal
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
-        main_splitter.setChildrenCollapsible(False)  # Empêche de réduire à zéro
+        # Zone principale (haut)
+        upper_area = self._setup_upper_area()
 
-        # Widget supérieur contenant l'interface principale
+        # Zone inférieure (bas)
+        lower_area = self._setup_lower_area()
+
+        # Splitter principal vertical
+        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        main_splitter.setChildrenCollapsible(False)
+        main_splitter.addWidget(upper_area)
+        main_splitter.addWidget(lower_area)
+        main_splitter.setStretchFactor(0, 4)  # Zone haute plus grande
+        main_splitter.setStretchFactor(1, 1)  # Zone basse plus petite
+
+        main_layout.addWidget(main_splitter)
+
+        # Connection aux signaux d'erreur de streaming
+        self.adb_status.stream_error.connect(
+            lambda msg: self.statusBar().showMessage(f"Erreur de streaming : {msg}")
+        )
+
+    def _handle_stream_error(self, error_msg: str):
+        """Affiche les erreurs de streaming dans la barre d'état."""
+        self.statusBar().showMessage(f"Erreur de streaming : {error_msg}")
+
+    def _handle_preview_toggle(self, enabled: bool):
+        """Gère l'activation/désactivation du streaming."""
+        logger.debug(f"Handling preview toggle: {enabled}")
+        try:
+            if enabled:
+                success = self.stream_window.start_stream()
+                if not success:
+                    # En cas d'échec, réinitialiser le bouton
+                    self.adb_status.preview_active = False
+                    self.adb_status.preview_btn.setText("Prévisualisation")
+            else:
+                self.stream_window.stop_stream()
+        except Exception as e:
+            logger.error(f"Erreur lors de la gestion du streaming: {e}")
+            # Réinitialiser le bouton en cas d'erreur
+            self.adb_status.preview_active = False
+            self.adb_status.preview_btn.setText("Prévisualisation")
+
+    def _setup_upper_area(self) -> QWidget:
+        """Configure la zone supérieure de l'interface."""
         upper_widget = QWidget()
         upper_layout = QHBoxLayout(upper_widget)
         upper_layout.setContentsMargins(0, 0, 0, 0)
         upper_layout.setSpacing(8)
 
-        # === PANNEAU GAUCHE (Arborescences) ===
+        # Panneau gauche (arborescence)
         left_panel = self._setup_left_panel()
         left_panel.setMinimumWidth(280)
         left_panel.setMaximumWidth(400)
+
+        # Zone centrale (photos)
+        center_panel = self._setup_photos_panel()
+
+        # Panneau droit (contrôles)
+        right_panel = self._setup_right_panel()
+        right_panel.setMinimumWidth(280)
+        right_panel.setMaximumWidth(400)
+
+        # Ajout des panneaux
         upper_layout.addWidget(left_panel)
+        upper_layout.addWidget(center_panel, stretch=1)
+        upper_layout.addWidget(right_panel)
 
-        # === PANNEAU CENTRAL (Android) ===
-        center_frame = QFrame()
-        center_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
-        # Taille fixe basée sur les dimensions de l'écran + padding
-        center_frame.setFixedWidth(ANDROID_SCREEN_WIDTH + 2 * FRAME_PADDING)
+        return upper_widget
 
-        center_layout = QVBoxLayout(center_frame)
-        center_layout.setContentsMargins(FRAME_PADDING, FRAME_PADDING,
-                                         FRAME_PADDING, FRAME_PADDING)
-        center_layout.setSpacing(8)
-        center_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+    def _setup_right_panel(self) -> QWidget:
+        """Configure le panneau droit avec les contrôles ADB et les boutons photo."""
+        right_panel = QWidget()
+        layout = QVBoxLayout(right_panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
-        # Widget d'état ADB
-        self.adb_status = ADBStatusWidget()
-        self.adb_status.setFixedHeight(100)
-        self.adb_status.setFixedWidth(ANDROID_SCREEN_WIDTH)
-        self.adb_status.connection_changed.connect(self._on_adb_connection_changed)
-        center_layout.addWidget(self.adb_status)
+        # Widget de status ADB en haut
+        self.adb_status = ADBStatusWidget(self.adb_manager)
+        layout.addWidget(self.adb_status)
 
-        # Container pour l'écran Android
-        screen_container = QWidget()
-        screen_container.setFixedSize(ANDROID_SCREEN_WIDTH, ANDROID_SCREEN_HEIGHT)
-        screen_layout = QVBoxLayout(screen_container)
-        screen_layout.setContentsMargins(0, 0, 0, 0)
-        screen_layout.setSpacing(0)
+        # Groupe des boutons photo
+        photo_group = QGroupBox("Actions Photos")
+        photo_layout = QVBoxLayout(photo_group)
+        photo_layout.setSpacing(6)
 
-        # Widget de streaming Android
-        self.phone_preview = InteractiveStreamDisplay(self.adb_status.adb_manager)
-        screen_layout.addWidget(self.phone_preview)
+        # Bouton pour ouvrir l'appareil photo
+        self.btn_open_camera = QPushButton("Ouvrir appareil photo")
+        self.btn_open_camera.setEnabled(False)
+        self.btn_open_camera.clicked.connect(self._open_camera)
+        photo_layout.addWidget(self.btn_open_camera)
 
-        center_layout.addWidget(screen_container)
-
-        # Groupe des boutons d'action photos avec taille fixe
-        actions_group = QGroupBox("Actions Photos")
-        actions_group.setFixedWidth(ANDROID_SCREEN_WIDTH)
-        actions_layout = QVBoxLayout(actions_group)
-        actions_layout.setSpacing(6)
-
+        # Création des boutons photo
         self.btn_photo_ferme = QPushButton("Photo Scellé Fermé")
         self.btn_photo_content = QPushButton("Photo Contenu")
         self.btn_photo_objet = QPushButton("Photo Objet d'Essai")
@@ -152,91 +194,89 @@ class MainWindow(QMainWindow):
         for photo_type, btn in self.photo_buttons.items():
             btn.setEnabled(False)
             btn.clicked.connect(lambda checked, t=photo_type: self._take_photo(t))
-            actions_layout.addWidget(btn)
+            photo_layout.addWidget(btn)
 
-        actions_group.setLayout(actions_layout)
-        center_layout.addWidget(actions_group)
+        layout.addWidget(photo_group)
+        layout.addStretch()  # Espace flexible en bas
 
-        upper_layout.addWidget(center_frame)
+        return right_panel
 
-        # === PANNEAU DROIT (Photos) ===
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
+    def _open_camera(self):
+        """Ouvre l'application appareil photo sur le téléphone Android."""
+        try:
+            if not self.adb_manager.is_connected():
+                logger.warning("Pas de connexion ADB active")
+                return
+
+            # Commande ADB pour ouvrir l'appareil photo
+            command = f'"{self.adb_manager.adb_command}" -s {self.adb_manager.current_device} shell am start -a android.media.action.STILL_IMAGE_CAMERA'
+
+            # Exécute la commande
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+            if result.returncode == 0:
+                logger.info("Application appareil photo ouverte avec succès")
+            else:
+                logger.error(
+                    f"Erreur lors de l'ouverture de l'appareil photo: {result.stderr}")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'ouverture de l'appareil photo: {e}")
+
+    def _setup_lower_area(self) -> QWidget:
+        """Configure la zone inférieure de l'interface."""
+        lower_widget = QWidget()
+        lower_layout = QHBoxLayout(lower_widget)
+        lower_layout.setContentsMargins(0, 0, 0, 0)
+        lower_layout.setSpacing(8)
+
+        # Terminal de logs
+        log_viewer = self._setup_log_viewer()
+
+        # # Boutons de photos
+        # photo_controls = self._setup_photo_controls()
+
+        lower_layout.addWidget(log_viewer, stretch=2)
+        # lower_layout.addWidget(photo_controls, stretch=1)
+
+        return lower_widget
+
+    def _setup_photos_panel(self) -> QWidget:
+        """Configure le panneau central des photos."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+
         self.photo_viewer = PhotoViewer()
-        right_layout.addWidget(self.photo_viewer)
-        upper_layout.addWidget(right_panel, stretch=1)
+        self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
+        layout.addWidget(self.photo_viewer)
 
-        main_splitter.addWidget(upper_widget)
+        return panel
 
-        # === TERMINAL DE LOGS ===
-        class ColoredLogViewer(QPlainTextEdit):
-            """Terminal avec coloration syntaxique pour les logs."""
+    def _setup_stream_dock(self) -> QDockWidget:
+        """Configure le dock pour le streaming Android."""
+        self.stream_window = StreamWindow(adb_manager=self.adb_manager, parent=self)
+        stream_dock = QDockWidget("Android Stream", self)
+        stream_dock.setWidget(self.stream_window)
+        stream_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+        )
+        return stream_dock
 
-            def __init__(self):
-                super().__init__()
-                self.setReadOnly(True)
-                self.setMaximumHeight(200)
-                self.setMinimumHeight(100)
-                self.document().setMaximumBlockCount(5000)  # Limite le nombre de lignes
 
-            def append_log(self, message, level="INFO"):
-                cursor = self.textCursor()
-                format = self.currentCharFormat()
-
-                # Utilise QPalette pour les couleurs système
-                if level == "DEBUG":
-                    format.setForeground(
-                        self.palette().color(QPalette.ColorRole.PlaceholderText))
-                elif level == "WARNING":
-                    format.setForeground(QColor(255, 165, 0))  # Orange
-                elif level == "ERROR" or level == "CRITICAL":
-                    format.setForeground(QColor(255, 0, 0))  # Rouge
-                else:  # INFO et autres
-                    format.setForeground(self.palette().color(QPalette.ColorRole.Text))
-
-                cursor.movePosition(QTextCursor.MoveOperation.End)
-                cursor.insertText(f"{message}\n", format)
-                self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
-
-            def load_initial_logs(self, buffer):
-                """Charge les logs du buffer dans l'interface."""
-                for message in buffer.logs:
-                    self.append_log(message)
-
+    def _setup_log_viewer(self) -> QPlainTextEdit:
+        """Configure le visualiseur de logs."""
         log_viewer = ColoredLogViewer()
         log_viewer.load_initial_logs(self.log_buffer)
 
-        # Handler personnalisé pour Loguru
-        class QtHandler:
-            def __init__(self, widget):
-                self.widget = widget
+        # Configuration du handler Loguru
+        logger.add(
+            QtHandler(log_viewer).write,
+            format="{time:HH:mm:ss} | {level: <8} | {message}"
+        )
 
-            def write(self, message):
-                try:
-                    # Extrait le niveau de log
-                    level = "INFO"
-                    for possible_level in ["DEBUG", "INFO", "WARNING", "ERROR",
-                                           "CRITICAL"]:
-                        if possible_level in message:
-                            level = possible_level
-                            break
-                    self.widget.append_log(message.strip(), level)
-                except Exception as e:
-                    print(f"Erreur dans le handler de log: {e}")
-
-        logger.add(QtHandler(log_viewer).write,
-                   format="{time:HH:mm:ss} | {level: <8} | {message}")
-        main_splitter.addWidget(log_viewer)
-
-
-
-        # Ajout du splitter principal au layout
-        main_layout.addWidget(main_splitter)
-
-        # Configure les proportions initiales du splitter
-        main_splitter.setStretchFactor(0, 4)
-        main_splitter.setStretchFactor(1, 1)
+        return log_viewer
 
 
     def _setup_left_panel(self):
@@ -248,12 +288,6 @@ class MainWindow(QMainWindow):
         """
         panel  = QWidget()
         layout  = QVBoxLayout(panel)
-
-        # # Force une largeur minimale et fixe pour le panneau
-        # panel.setMinimumWidth(280)
-        # panel.setMaximumWidth(400)
-        # panel.setSizePolicy(QSizePolicy.Policy.Fixed,
-        #                     QSizePolicy.Policy.Preferred)  # Empêche le redimensionnement
 
         # Section du dossier de travail (inchangée)
         workspace_widget = QWidget()
@@ -348,59 +382,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.objects_list)
 
         return group
-
-    def _setup_right_panel(self):
-        """Configure le panneau droit avec la prévisualisation et les actions."""
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-
-        # Widget d'état ADB en haut
-        self.adb_status = ADBStatusWidget()
-        self.adb_status.connection_changed.connect(self._on_adb_connection_changed)
-        right_layout.addWidget(self.adb_status)
-
-        # Création des onglets
-        preview_tabs = QTabWidget()
-
-        # Onglet Preview avec le widget de prévisualisation du téléphone
-        self.phone_preview = InteractiveStreamDisplay(self.adb_status.adb_manager)
-        preview_tabs.addTab(self.phone_preview, "Preview")
-
-
-        # Onglet Photos
-        self.photo_viewer = PhotoViewer()
-        preview_tabs.addTab(self.photo_viewer, "Photos")
-
-        right_layout.addWidget(preview_tabs)
-
-        # Groupe des boutons d'action
-        actions_group = QGroupBox("Actions Photos")
-        actions_layout = QVBoxLayout()
-
-        # Création des boutons individuellement
-        self.btn_photo_ferme = QPushButton("Photo Scellé Fermé")
-        self.btn_photo_content = QPushButton("Photo Contenu")
-        self.btn_photo_objet = QPushButton("Photo Objet d'Essai")
-        self.btn_photo_recond = QPushButton("Photo Reconditionnement")
-
-        # Dictionnaire des boutons
-        self.photo_buttons = {
-            "ferme": self.btn_photo_ferme,
-            "contenu": self.btn_photo_content,
-            "objet": self.btn_photo_objet,
-            "recond": self.btn_photo_recond
-        }
-
-        # Configuration des boutons
-        for photo_type, btn in self.photo_buttons.items():
-            btn.setEnabled(False)
-            btn.clicked.connect(lambda checked, t=photo_type: self._take_photo(t))
-            actions_layout.addWidget(btn)
-
-        actions_group.setLayout(actions_layout)
-        right_layout.addWidget(actions_group)
-
-        return right_panel
 
     def _create_new_affaire(self):
         """
@@ -645,6 +626,8 @@ class MainWindow(QMainWindow):
 
     def _enable_photo_buttons(self):
         """Active les boutons photo selon le contexte."""
+        # Active le bouton d'appareil photo si ADB est connecté
+        self.btn_open_camera.setEnabled(self.adb_manager.is_connected())
         # Active les boutons de base du scellé
         self.btn_photo_ferme.setEnabled(True)
         self.btn_photo_content.setEnabled(True)
@@ -807,33 +790,10 @@ class MainWindow(QMainWindow):
             self._disable_photo_buttons()
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
 
-    def _create_status_bar(self):
-        """Crée la barre d'état avec les informations de l'application."""
-        status_bar = QStatusBar()
-        self.setStatusBar(status_bar)
-        status_bar.showMessage("Prêt")
-
-        status_bar.addPermanentWidget(
-            QLabel(f"Version: {self.config.app_version}")
-        )
-        if self.config.debug_mode:
-            status_bar.addPermanentWidget(QLabel("Mode Debug"))
-
-
-    def _on_adb_connection_changed(self, is_connected: bool):
-        """Gère les changements d'état de la connexion ADB."""
-        if is_connected and self.adb_status.preview_active:
-            self.phone_preview.start_stream()
-            self._update_photo_buttons()
-        else:
-            self.phone_preview.stop_stream()
-            self._disable_photo_buttons()
-
-
     def _update_photo_buttons(self):
         """Met à jour l'état des boutons photo selon le contexte."""
         can_take_photos = (
-                self.adb_status.adb_manager.is_connected() and
+                self.adb_manager.is_connected() and
                 self.current_scelle is not None
         )
 
@@ -853,7 +813,7 @@ class MainWindow(QMainWindow):
         Args:
             photo_type: Type de photo à prendre
         """
-        if not self.adb_status.adb_manager.is_connected():
+        if not self.adb_manager.is_connected():
             return
 
         try:
