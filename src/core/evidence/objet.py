@@ -71,11 +71,14 @@ class ObjetEssai(EvidenceBase):
         logger.debug(f"Recherche des photos pour l'objet {item_id}")
         photos = []
 
-        for photo_path in self.base_path.glob(f"*{item_id}*.jpg"):
+        for photo_path in self.base_path.glob(f"*{item_id}_*.jpg"):
             try:
+                # On part de la fin du nom pour plus de fiabilité
                 parts = photo_path.stem.split("_")
-                if len(parts) >= 4 and parts[2] == item_id:
-                    seq = int(parts[3])
+                # Le numéro de séquence est toujours le dernier élément
+                seq = int(parts[-1])
+                # La lettre de l'objet est l'avant-dernier élément
+                if parts[-2] == item_id:
                     photos.append(
                         Photo(
                             path=photo_path,
@@ -107,8 +110,9 @@ class ObjetEssai(EvidenceBase):
         for photo_path in self.base_path.glob("*.jpg"):
             try:
                 parts = photo_path.stem.split('_')
-                if len(parts) >= 4:
-                    object_letter = parts[2]
+                if len(parts) >= 2:
+                    # L'identifiant de l'objet est l'avant-dernier élément
+                    object_letter = parts[-2]
                     if len(object_letter) == 1 and object_letter.isalpha():
                         objects.add(object_letter)
                         logger.debug(f"Objet trouvé dans les photos: {object_letter}")
