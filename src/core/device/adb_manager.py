@@ -8,6 +8,7 @@ import subprocess
 import platform
 import os
 import shutil
+import re
 
 from PyQt6.QtCore import QProcess
 from adb_shell.adb_device import AdbDeviceUsb
@@ -287,4 +288,90 @@ class ADBManager:
 
         except Exception as e:
             logger.error(f"Erreur de connexion ADB: {e}")
+            return False
+
+    def take_photo(self, save_path: Path) -> bool:
+        """
+        Prend une photo avec l'appareil Android et la transfère vers le PC.
+
+        Args:
+            save_path: Chemin où sauvegarder la photo
+
+        Returns:
+            bool: True si la photo est prise et transférée avec succès
+        """
+        try:
+            if not self.is_connected():
+                logger.error("Pas d'appareil connecté")
+                return False
+
+            #VOIR POUR DETECTER SI APPAREIL PHOTO DEJA LANCE ? SI NON, OUVRIR
+
+            # # Lance l'appareil photo
+            # subprocess.run(
+            #     f'"{self.adb_command}" -s {self.current_device} shell '
+            #     f'am start -a android.media.action.IMAGE_CAPTURE',
+            #     shell=True, check=True
+            # )
+            #
+            # # Attend que l'app soit lancée
+            # time.sleep(1.5)
+
+            # Prend la photo avec KEYCODE_CAMERA
+            # Ne semble pas fonctionner
+            subprocess.run(
+                f'"{self.adb_command}" -s {self.current_device} shell '
+                f'input keyevent 27',
+                shell=True, check=True
+            )
+
+            # Attend que la photo soit sauvegardée
+            time.sleep(2)
+
+            # Scan le dossier DCIM pour trouver la nouvelle photo
+            path_dcim = "/sdcard/DCIM"
+            list_file = []
+
+            # Liste les sous-dossiers de DCIM
+            cmd = f'"{self.adb_command}" -s {self.current_device} shell ls {path_dcim}'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            subdirs = [d for d in result.stdout.splitlines() if d]
+
+            # Cherche les photos dans chaque sous-dossier
+            for subdir in subdirs:
+                cmd = f'"{self.adb_command}" -s {self.current_device} shell ls {path_dcim}/{subdir}'
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                files = result.stdout.splitlines()
+
+                for f in files:
+                    if re.search(r"(.jpg|.jpeg|.png)$", f, re.IGNORECASE):
+                        list_file.append(f"{path_dcim}/{subdir}/{f}")
+
+            if not list_file:
+                logger.error("Aucune photo trouvée")
+                return False
+
+            # Prend la dernière photo de la liste (la plus récente)
+            latest_photo = list_file[0]
+
+            # Transfère la photo
+            subprocess.run(
+                f'"{self.adb_command}" -s {self.current_device} pull "{latest_photo}" "{save_path}"',
+                shell=True, check=True
+            )
+
+            # Supprime la photo de l'appareil
+            subprocess.run(
+                f'"{self.adb_command}" -s {self.current_device} shell rm "{latest_photo}"',
+                shell=True
+            )
+
+            logger.info(f"Photo sauvegardée : {save_path}")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Erreur lors de la prise de photo : {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Erreur inattendue : {e}")
             return False

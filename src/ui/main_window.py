@@ -817,17 +817,6 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
             logger.info(f"Changement d'affaire : {path.name}")
 
-    # def _on_case_selected(self, index: QModelIndex):
-    #     """Gère la sélection d'une affaire."""
-    #     path = Path(self.cases_model.filePath(index))
-    #     if path.is_dir():
-    #         self.current_case_path = path
-    #         # Initialise le gestionnaire de scellés pour cette affaire
-    #         self.scelle_manager = Scelle(path)
-    #         self._load_scelles(path)
-    #         self._disable_photo_buttons()
-    #         self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
-
     def _update_photo_buttons(self):
         """
         Met à jour l'état des boutons photo selon le contexte actuel.
@@ -860,35 +849,69 @@ class MainWindow(QMainWindow):
         Prend une photo avec l'appareil connecté.
 
         Args:
-            photo_type: Type de photo à prendre
+            photo_type: Type de photo ('ferme', 'contenu', 'objet', 'recond')
         """
-        if not self.adb_manager.is_connected():
+        if not self.adb_manager.is_connected() or not self.current_scelle:
             return
 
         try:
-            # Configure le chemin de sauvegarde selon le type
-            if photo_type == "objet" and not self.current_object:
+            # Détermine le préfixe selon le type
+            prefix_map = {
+                'ferme': 'Ferme',
+                'contenu': 'Contenu',
+                'objet': self.current_object,
+                'recond': 'Reconditionne'
+            }
+
+            # Vérifie que l'objet est sélectionné pour les photos d'objet
+            if photo_type == 'objet' and not self.current_object:
+                logger.error("Aucun objet sélectionné")
                 return
 
-            # Détermine le nom de fichier
-            next_num = self.get_next_photo_number(
-                self.current_scelle,
-                photo_type if photo_type != "objet" else self.current_object
-            )
+            prefix = prefix_map[photo_type]
 
-            save_path = (
-                    self.current_scelle /
-                    f"{photo_type}_{next_num}.jpg"
-            )
+            # Trouve le prochain numéro disponible
+            max_num = 0
+            pattern = f"*{prefix}_*.jpg"
+            # Utilise directement current_scelle qui est déjà un Path
+            for photo in self.current_scelle.glob(pattern):
+                try:
+                    num = int(photo.stem.split('_')[-1])
+                    max_num = max(max_num, num)
+                except (ValueError, IndexError):
+                    continue
+
+            next_num = max_num + 1
+
+            # Crée le nom de fichier
+            scelle_name = self.current_scelle.name
+            file_name = f"{scelle_name}_{prefix}_{next_num}.jpg"
+            save_path = self.current_scelle / file_name
 
             # Prend la photo
-            if self.adb_status.adb_manager.take_photo(save_path):
-                self.statusBar().showMessage(f"Photo sauvegardée: {save_path.name}")
-                # Rafraîchit l'affichage des photos
+            if self.adb_manager.take_photo(save_path):
+                self.statusBar().showMessage(f"Photo sauvegardée : {file_name}")
+                # Rafraîchit l'affichage
                 self._refresh_photos()
             else:
                 self.statusBar().showMessage("Erreur lors de la prise de photo")
 
         except Exception as e:
-            logger.error(f"Erreur lors de la prise de photo: {e}")
+            logger.error(f"Erreur lors de la prise de photo : {e}")
             self.statusBar().showMessage("Erreur lors de la prise de photo")
+    def _refresh_photos(self):
+        """Rafraîchit l'affichage des photos après une nouvelle prise de vue."""
+        if not self.current_scelle:
+            return
+
+        try:
+            # Réorganise les photos
+            photos_dict = self._organize_photos()
+
+            # Met à jour l'affichage
+            self.photo_viewer.load_photos(photos_dict)
+
+            logger.info("Affichage des photos rafraîchi")
+
+        except Exception as e:
+            logger.error(f"Erreur lors du rafraîchissement des photos : {e}")
