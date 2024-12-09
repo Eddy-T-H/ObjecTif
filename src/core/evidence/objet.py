@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List, Optional
 from loguru import logger
 
-from .naming import PhotoType, PhotoNaming
 
 
 class ObjetEssai(EvidenceBase):

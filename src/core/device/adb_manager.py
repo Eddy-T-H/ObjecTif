@@ -8,113 +8,18 @@ import subprocess
 import platform
 import os
 import shutil
-import re
 
 from PyQt6.QtCore import QProcess
-from adb_shell.adb_device import AdbDeviceUsb
-from adb_shell.auth.sign_pythonrsa import PythonRSASigner
-from adb_shell.auth.keygen import keygen
-
 
 class ADBManager:
     """Gère les interactions avec les appareils Android via adb et scrcpy."""
 
-    def __init__(self, keys_path: Path = None):
+    def __init__(self):
         """
         Initialise le gestionnaire ADB.
-
-        Args:
-            keys_path: Chemin vers les fichiers de clés ADB. Si non fourni,
-                      utilise le dossier par défaut de l'application
         """
-        self.device = None
-        self.signer = None
         self.current_device = None
-        self.scrcpy_process = None
-        self.keys_path = keys_path or Path.home() / ".android"
-        self._ensure_keys()
         self._start_adb_server()
-
-    def _ensure_keys(self):
-        """Assure que les clés ADB existent, les génère si nécessaire."""
-        key_file = self.keys_path / "adbkey"
-        try:
-            if not key_file.exists() or not (key_file.with_suffix(".pub")).exists():
-                logger.info("Génération des clés ADB...")
-                self.keys_path.mkdir(parents=True, exist_ok=True)
-                keygen(str(key_file))
-
-            # Charge les clés
-            with open(key_file) as f:
-                priv = f.read()
-            with open(key_file.with_suffix(".pub")) as f:
-                pub = f.read()
-
-            self.signer = PythonRSASigner(pub, priv)
-            logger.info("Clés ADB chargées avec succès")
-
-        except Exception as e:
-            logger.error(f"Erreur lors de la gestion des clés ADB: {e}")
-            raise RuntimeError("Impossible d'initialiser les clés ADB")
-
-    def start_scrcpy(self) -> bool:
-        """
-        Lance scrcpy pour le mirroring de l'écran.
-
-        Returns:
-            bool: True si le lancement est réussi
-        """
-        try:
-            if not self.current_device:
-                logger.error("Aucun appareil connecté")
-                return False
-
-            # Détermine le chemin de scrcpy selon l'OS
-            if platform.system() == "Windows":
-                scrcpy_cmd = ".\\scrcpy\\scrcpy.exe"
-            else:
-                # Sur Linux/MacOS, vérifie que scrcpy est installé
-                if not shutil.which("scrcpy"):
-                    logger.error("scrcpy n'est pas installé sur le système")
-                    return False
-                scrcpy_cmd = "scrcpy"
-
-            # Prépare la commande avec les arguments
-            command = [
-                scrcpy_cmd,
-                "--serial",
-                self.current_device,
-                "--window-title",
-                "Prévisualisation Android",
-                "--window-width",
-                "400",
-                "--window-height",
-                "800",
-            ]
-
-            # Lance scrcpy dans un processus séparé
-            self.scrcpy_process = QProcess()
-            self.scrcpy_process.start(command[0], command[1:])
-
-            logger.info("Mirroring scrcpy démarré")
-            return True
-
-        except Exception as e:
-            logger.error(f"Erreur lors du lancement de scrcpy: {e}")
-            return False
-
-    def stop_scrcpy(self):
-        """Arrête le processus scrcpy s'il est en cours."""
-        if (
-            self.scrcpy_process
-            and self.scrcpy_process.state() == QProcess.ProcessState.Running
-        ):
-            self.scrcpy_process.terminate()
-            self.scrcpy_process.waitForFinished(3000)  # Attend 3 secondes max
-            if self.scrcpy_process.state() == QProcess.ProcessState.Running:
-                self.scrcpy_process.kill()
-            logger.info("Mirroring scrcpy arrêté")
-            self.scrcpy_process = None
 
     def is_connected(self) -> bool:
         """Vérifie si un appareil est connecté."""
@@ -347,11 +252,6 @@ class ADBManager:
                 logger.warning("Aucune photo trouvée dans aucun des dossiers testés")
 
             return all_photos
-
-        except Exception as e:
-            logger.error(f"Erreur lors du listing des photos: {e}")
-            logger.exception(e)
-            return []
 
         except Exception as e:
             logger.error(f"Erreur lors du listing des photos: {e}")

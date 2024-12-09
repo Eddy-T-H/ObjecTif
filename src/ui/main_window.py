@@ -27,7 +27,6 @@ from .widgets.photo_viewer import PhotoViewer
 from .widgets.stream_window import StreamWindow
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
-from ..core.evidence.naming import PhotoType
 from ..core.evidence.objet import ObjetEssai
 from ..core.evidence.scelle import Scelle
 
