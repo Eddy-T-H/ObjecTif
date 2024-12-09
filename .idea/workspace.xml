@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="WIP prise de photos">
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Prise de photo fonctionnelle">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/device/adb_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/device/adb_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/photo_viewer.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/photo_viewer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,7 +98,7 @@
       <workItem from="1733129113655" duration="38747000" />
       <workItem from="1733302295208" duration="17473000" />
       <workItem from="1733382542255" duration="10894000" />
-      <workItem from="1733728896875" duration="10404000" />
+      <workItem from="1733728896875" duration="11387000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -171,7 +172,15 @@
       <option name="project" value="LOCAL" />
       <updated>1733396764628</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Prise de photo fonctionnelle">
+      <option name="closed" value="true" />
+      <created>1733756009280</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1733756009280</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -186,11 +195,12 @@
     <MESSAGE value="Amélioration UI photos" />
     <MESSAGE value="Fix listing objets" />
     <MESSAGE value="WIP prise de photos" />
-    <option name="LAST_COMMIT_MESSAGE" value="WIP prise de photos" />
+    <MESSAGE value="Prise de photo fonctionnelle" />
+    <option name="LAST_COMMIT_MESSAGE" value="Prise de photo fonctionnelle" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1733755733937" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1733756608431" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1733731177680" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />

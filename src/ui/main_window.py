@@ -891,8 +891,10 @@ class MainWindow(QMainWindow):
             # Prend la photo
             if self.adb_manager.take_photo(save_path):
                 self.statusBar().showMessage(f"Photo sauvegardée : {file_name}")
-                # Rafraîchit l'affichage
-                self._refresh_photos()
+
+                # Ajoute uniquement la nouvelle photo à l'interface
+                self.photo_viewer.add_single_photo(str(save_path), prefix)
+
             else:
                 self.statusBar().showMessage("Erreur lors de la prise de photo")
 

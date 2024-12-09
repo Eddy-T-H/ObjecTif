@@ -130,79 +130,6 @@ class PhotoViewer(QWidget):
 
         layout.addWidget(self.scroll)
 
-    # def _setup_ui(self):
-    #     """Configure l'interface du visualiseur."""
-    #     layout = QVBoxLayout(self)
-    #     layout.setSpacing(10)
-    #
-    #     # Conteneur pour les contrôles supérieurs
-    #     controls_container = QWidget()
-    #     controls_layout = QHBoxLayout(controls_container)
-    #     controls_layout.setSpacing(10)
-    #     controls_layout.setContentsMargins(5, 5, 5, 5)
-    #
-    #     # Slider de taille avec labels
-    #     size_label = QLabel("Taille des miniatures:")
-    #     controls_layout.addWidget(size_label)
-    #
-    #     self.size_slider = QSlider(Qt.Orientation.Horizontal)
-    #     self.size_slider.setMinimum(self.MIN_THUMB_SIZE)
-    #     self.size_slider.setMaximum(self.MAX_THUMB_SIZE)
-    #     self.size_slider.setValue(self.DEFAULT_THUMB_SIZE)
-    #     self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-    #     self.size_slider.setTickInterval(50)
-    #     self.size_slider.valueChanged.connect(self._on_size_changed)
-    #     controls_layout.addWidget(self.size_slider)
-    #
-    #     # Valeur numérique
-    #     self.size_value_label = QLabel(f"{self.DEFAULT_THUMB_SIZE}px")
-    #     controls_layout.addWidget(self.size_value_label)
-    #
-    #     # Boutons de filtrage
-    #     filter_layout = QHBoxLayout()
-    #     filter_layout.setSpacing(5)
-    #
-    #
-    #     # Création des boutons de filtre
-    #     self.filter_buttons = {}
-    #     for filter_type in PhotoFilter:
-    #         btn = QPushButton(filter_type.display_name)
-    #         btn.setCheckable(True)
-    #         btn.setProperty("filter_category", filter_type)
-    #         filter_layout.addWidget(btn)
-    #         btn.clicked.connect(self._on_filter_clicked)
-    #         self.filter_buttons[filter_type] = btn
-    #
-    #     # Activer le filtre "Toutes" par défaut
-    #     controls_layout.addLayout(filter_layout)
-    #     self.filter_buttons[PhotoFilter.ALL].setChecked(True)
-    #
-    #     layout.addWidget(controls_container)
-    #
-    #     # Zone de défilement avec style adaptatif
-    #     self.scroll = QScrollArea()  # Stocké dans self maintenant
-    #     self.scroll.setWidgetResizable(True)
-    #     self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-    #     self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-    #     self.scroll.setStyleSheet("""
-    #         QScrollArea {
-    #             background-color: palette(base);
-    #             border: none;
-    #         }
-    #         QScrollBar {
-    #             background-color: palette(base);
-    #         }
-    #     """)
-    #
-    #     # Widget contenant la grille
-    #     self.grid_widget = QWidget()
-    #     self.grid_layout = QGridLayout(self.grid_widget)
-    #     self.grid_layout.setSpacing(10)
-    #     self.grid_layout.setContentsMargins(10, 10, 10, 10)
-    #     self.scroll.setWidget(self.grid_widget)
-    #
-    #     layout.addWidget(self.scroll)
-
     def _on_size_changed(self, value):
         """Gère le changement de taille des miniatures."""
         self.thumb_size = value
@@ -409,3 +336,44 @@ class PhotoViewer(QWidget):
     def is_loading(self) -> bool:
         """Indique si un chargement est en cours."""
         return self.loader_thread is not None and self.loader_thread.isRunning()
+
+
+    def add_single_photo(self, photo_path: str, photo_type: str):
+        """
+        Ajoute une seule photo à la grille existante.
+
+        Args:
+            photo_path: Chemin de la nouvelle photo
+            photo_type: Type de la photo (ferme, contenu, objet, recond)
+        """
+        logger.debug(f"Ajout d'une seule photo: {photo_path} (type: {photo_type})")
+
+        # Vérifie si la photo doit être affichée selon le filtre actuel
+        should_display = False
+        if self.current_filter == PhotoFilter.ALL:
+            should_display = True
+        elif (self.current_filter == PhotoFilter.SEALED and photo_type == "Ferme") or \
+                (self.current_filter == PhotoFilter.CONTENT and photo_type == "Contenu") or \
+                (
+                        self.current_filter == PhotoFilter.RESEALED and photo_type == "Reconditionne") or \
+                (
+                        self.current_filter == PhotoFilter.OBJECTS and photo_type.isalpha() and len(
+                    photo_type) == 1):
+            should_display = True
+
+        if not should_display:
+            return
+
+        # Crée et ajoute la miniature
+        thumb = PhotoThumbnail(Path(photo_path), loading=True)
+        thumb.clicked.connect(self._on_thumbnail_clicked)
+        thumb.resize_thumbnail(QSize(self.thumb_size, self.thumb_size))
+        self.thumbnails[photo_path] = thumb
+
+        # Démarre un thread pour charger cette seule photo
+        loader = PhotoLoaderThread([photo_path])
+        loader.photo_loaded.connect(self._update_thumbnail)
+        loader.start()
+
+        # Ajoute la miniature à la grille
+        self._refresh_grid()
