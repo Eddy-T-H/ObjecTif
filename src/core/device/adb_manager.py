@@ -290,88 +290,158 @@ class ADBManager:
             logger.error(f"Erreur de connexion ADB: {e}")
             return False
 
+    def _list_dcim_photos(self) -> list[str]:
+        """Liste toutes les photos dans les dossiers possibles de l'appareil."""
+        try:
+            paths = [
+                "/storage/emulated/0/DCIM/100ANDRO",
+                "/storage/emulated/0/DCIM/Camera",
+                "/storage/emulated/0/Pictures/Camera",
+                "/sdcard/DCIM/Camera",
+                "/storage/emulated/0/DCIM/100MEDIA",
+                "/storage/emulated/0/Pictures",
+                "/storage/emulated/0/DCIM"
+            ]
+
+            all_photos = []
+
+            for dir_path in paths:
+                logger.debug(f"Recherche de photos dans: {dir_path}")
+
+                # Liste d'abord le contenu du dossier sans filtre
+                cmd_list = f'"{self.adb_command}" -s {self.current_device} shell ls "{dir_path}"'
+                result_list = subprocess.run(cmd_list, shell=True, capture_output=True,
+                                             text=True)
+
+                if result_list.returncode == 0:
+                    logger.debug(f"Contenu de {dir_path}: {result_list.stdout}")
+                else:
+                    logger.debug(f"Erreur listing {dir_path}: {result_list.stderr}")
+
+                # Cherche les photos avec les deux patterns (JPG et jpg)
+                patterns = ["*.JPG", "*.jpg"]
+                for pattern in patterns:
+                    cmd_photos = f'"{self.adb_command}" -s {self.current_device} shell ls "{dir_path}/{pattern}"'
+                    result_photos = subprocess.run(cmd_photos, shell=True,
+                                                   capture_output=True, text=True)
+
+                    if result_photos.returncode == 0 and not "No such file or directory" in result_photos.stderr:
+                        photos = [f.strip() for f in result_photos.stdout.splitlines()
+                                  if
+                                  f.strip() and not "*" in f]  # Évite les wildcards non résolus
+
+                        # Ajoute le chemin complet
+                        full_path_photos = [
+                            f if f.startswith('/') else f"{dir_path}/{f}" for f in
+                            photos]
+                        all_photos.extend(full_path_photos)
+                        if photos:
+                            logger.debug(
+                                f"Trouvé {len(photos)} photos en {pattern} dans {dir_path}")
+                            logger.debug(f"Exemple de photo: {full_path_photos[0]}")
+
+            # Log le résultat final
+            if all_photos:
+                logger.info(f"Total des photos trouvées: {len(all_photos)}")
+            else:
+                logger.warning("Aucune photo trouvée dans aucun des dossiers testés")
+
+            return all_photos
+
+        except Exception as e:
+            logger.error(f"Erreur lors du listing des photos: {e}")
+            logger.exception(e)
+            return []
+
+        except Exception as e:
+            logger.error(f"Erreur lors du listing des photos: {e}")
+            logger.exception(e)
+            return []
+
     def take_photo(self, save_path: Path) -> bool:
         """
-        Prend une photo avec l'appareil Android et la transfère vers le PC.
+        Prend une photo et transfère toutes les photos du téléphone.
 
         Args:
-            save_path: Chemin où sauvegarder la photo
+            save_path: Chemin de sauvegarde sur le PC (détermine le format de nommage)
 
         Returns:
-            bool: True si la photo est prise et transférée avec succès
+            bool: True si au moins une photo a été transférée
         """
         try:
-            if not self.is_connected():
-                logger.error("Pas d'appareil connecté")
-                return False
+            # Simule l'appui sur le bouton volume pour prendre la photo
+            logger.debug("Déclenchement de la capture via bouton volume")
+            volume_cmd = f'"{self.adb_command}" -s {self.current_device} shell input keyevent 24'
+            subprocess.run(volume_cmd, shell=True, check=True)
 
-            #VOIR POUR DETECTER SI APPAREIL PHOTO DEJA LANCE ? SI NON, OUVRIR
+            # Attends que la photo soit enregistrée
+            time.sleep(3)
 
-            # # Lance l'appareil photo
-            # subprocess.run(
-            #     f'"{self.adb_command}" -s {self.current_device} shell '
-            #     f'am start -a android.media.action.IMAGE_CAPTURE',
-            #     shell=True, check=True
-            # )
-            #
-            # # Attend que l'app soit lancée
-            # time.sleep(1.5)
+            # Récupère toutes les photos et les transfère
+            return self._transfer_all_photos(save_path)
 
-            # Prend la photo avec KEYCODE_CAMERA
-            # Ne semble pas fonctionner
-            subprocess.run(
-                f'"{self.adb_command}" -s {self.current_device} shell '
-                f'input keyevent 27',
-                shell=True, check=True
-            )
-
-            # Attend que la photo soit sauvegardée
-            time.sleep(2)
-
-            # Scan le dossier DCIM pour trouver la nouvelle photo
-            path_dcim = "/sdcard/DCIM"
-            list_file = []
-
-            # Liste les sous-dossiers de DCIM
-            cmd = f'"{self.adb_command}" -s {self.current_device} shell ls {path_dcim}'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            subdirs = [d for d in result.stdout.splitlines() if d]
-
-            # Cherche les photos dans chaque sous-dossier
-            for subdir in subdirs:
-                cmd = f'"{self.adb_command}" -s {self.current_device} shell ls {path_dcim}/{subdir}'
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                files = result.stdout.splitlines()
-
-                for f in files:
-                    if re.search(r"(.jpg|.jpeg|.png)$", f, re.IGNORECASE):
-                        list_file.append(f"{path_dcim}/{subdir}/{f}")
-
-            if not list_file:
-                logger.error("Aucune photo trouvée")
-                return False
-
-            # Prend la dernière photo de la liste (la plus récente)
-            latest_photo = list_file[0]
-
-            # Transfère la photo
-            subprocess.run(
-                f'"{self.adb_command}" -s {self.current_device} pull "{latest_photo}" "{save_path}"',
-                shell=True, check=True
-            )
-
-            # Supprime la photo de l'appareil
-            subprocess.run(
-                f'"{self.adb_command}" -s {self.current_device} shell rm "{latest_photo}"',
-                shell=True
-            )
-
-            logger.info(f"Photo sauvegardée : {save_path}")
-            return True
-
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Erreur lors de la prise de photo : {e}")
-            return False
         except Exception as e:
-            logger.error(f"Erreur inattendue : {e}")
+            logger.error(f"Erreur lors de la prise de photo: {e}")
+            return False
+
+    def _transfer_all_photos(self, save_path: Path) -> bool:
+        """
+        Transfère toutes les photos du téléphone en les renommant selon le modèle.
+
+        Args:
+            save_path: Chemin de sauvegarde qui sert de modèle pour le nommage
+        """
+        try:
+            # Liste toutes les photos sur le téléphone
+            phone_photos = self._list_dcim_photos()
+            if not phone_photos:
+                logger.error("Aucune photo trouvée sur le téléphone")
+                return False
+
+            # Crée le dossier de destination si nécessaire
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Détermine le type de photo à partir du nom cible
+            # Ex: si save_path est "scelle_01_Ferme_1.jpg", on extrait "Ferme"
+            photo_type = save_path.stem.split('_')[
+                -2]  # Attention aux noms d'objets (A, B, C...)
+
+            # Trouve le dernier numéro utilisé dans le dossier pour ce type
+            existing_photos = list(save_path.parent.glob(f"*_{photo_type}_*.jpg"))
+            last_num = 0
+            for photo in existing_photos:
+                try:
+                    num = int(photo.stem.split('_')[-1])
+                    last_num = max(last_num, num)
+                except (ValueError, IndexError):
+                    continue
+
+            # Transfère chaque photo avec un nouveau nom
+            success = False
+            for phone_photo in phone_photos:
+                last_num += 1
+                new_name = save_path.parent / f"{save_path.stem[:-1]}{last_num}.jpg"
+
+                pull_cmd = f'"{self.adb_command}" -s {self.current_device} pull "{phone_photo}" "{new_name}"'
+                result = subprocess.run(pull_cmd, shell=True, capture_output=True,
+                                        text=True)
+
+                if result.returncode == 0:
+                    logger.info(f"Photo transférée avec succès vers {new_name}")
+                    success = True
+                else:
+                    logger.error(
+                        f"Erreur lors du transfert de {phone_photo}: {result.stderr}")
+
+            # Supprime les photos du téléphone après transfert réussi
+            if success:
+                for phone_photo in phone_photos:
+                    rm_cmd = f'"{self.adb_command}" -s {self.current_device} shell rm "{phone_photo}"'
+                    subprocess.run(rm_cmd, shell=True)
+                logger.info("Photos supprimées du téléphone après transfert")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Erreur lors du transfert des photos: {e}")
             return False
