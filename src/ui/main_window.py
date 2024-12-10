@@ -23,7 +23,6 @@ from .dialogs.create_scelle_dialog import CreateScelleDialog
 from .widgets.adb_status import ADBStatusWidget
 from .widgets.log_viewer import ColoredLogViewer, QtHandler
 
-from .widgets.photo_viewer import PhotoViewer
 from .widgets.stream_window import StreamWindow
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
@@ -67,7 +66,8 @@ class MainWindow(QMainWindow):
         self.stream_dock = None    # Sera initialisé dans _initialize_ui
 
         self.setWindowTitle(f"{config.app_name} v{config.app_version}")
-        self.setMinimumSize(1024, 768)
+        self.setMinimumSize(1920, 1080)
+
         # Initialisation de l'interface
         self._initialize_ui()
         self._check_workspace()
@@ -76,40 +76,46 @@ class MainWindow(QMainWindow):
         if self.config.paths.workspace_path:
             self._refresh_workspace_view()
 
-        self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
-
         # Connecte le signal de changement de connexion
         self.adb_status.connection_changed.connect(self._update_photo_buttons)
 
     def _initialize_ui(self):
-        """Initialise l'interface utilisateur principale."""
-        # Widget central
+        """Configure l'interface utilisateur principale."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
-        # Zone principale (haut)
-        upper_area = self._setup_upper_area()
+        # Zone principale avec navigation et contrôles
+        upper_area = QWidget()
+        upper_layout = QHBoxLayout(upper_area)
+        upper_layout.setContentsMargins(0, 0, 0, 0)
+        upper_layout.setSpacing(8)
 
-        # Zone inférieure (bas)
-        lower_area = self._setup_lower_area()
+        # Zone de navigation (gauche)
+        navigation_panel = self._setup_left_panel()
+        navigation_panel.setMinimumWidth(280)
 
-        # Splitter principal vertical
+        # Zone de contrôle (droite)
+        control_panel = self._setup_right_panel()
+        control_panel.setMinimumWidth(280)
+
+        upper_layout.addWidget(navigation_panel)
+        upper_layout.addWidget(control_panel)
+
+        # Terminal de logs (bas)
+        log_viewer = self._setup_log_viewer()
+
+        # Ajout des zones dans le layout principal
         main_splitter = QSplitter(Qt.Orientation.Vertical)
         main_splitter.setChildrenCollapsible(False)
         main_splitter.addWidget(upper_area)
-        main_splitter.addWidget(lower_area)
-        main_splitter.setStretchFactor(0, 4)  # Zone haute plus grande
+        main_splitter.addWidget(log_viewer)
+        main_splitter.setStretchFactor(0, 3)  # Zone haute plus grande
         main_splitter.setStretchFactor(1, 1)  # Zone basse plus petite
 
         main_layout.addWidget(main_splitter)
-
-        # Connection aux signaux d'erreur de streaming
-        self.adb_status.stream_error.connect(
-            lambda msg: self.statusBar().showMessage(f"Erreur de streaming : {msg}")
-        )
 
     def _handle_stream_error(self, error_msg: str):
         """Affiche les erreurs de streaming dans la barre d'état."""
@@ -133,32 +139,6 @@ class MainWindow(QMainWindow):
             self.adb_status.preview_active = False
             self.adb_status.preview_btn.setText("Prévisualisation")
 
-    def _setup_upper_area(self) -> QWidget:
-        """Configure la zone supérieure de l'interface."""
-        upper_widget = QWidget()
-        upper_layout = QHBoxLayout(upper_widget)
-        upper_layout.setContentsMargins(0, 0, 0, 0)
-        upper_layout.setSpacing(8)
-
-        # Panneau gauche (arborescence)
-        left_panel = self._setup_left_panel()
-        left_panel.setMinimumWidth(280)
-        left_panel.setMaximumWidth(400)
-
-        # Zone centrale (photos)
-        center_panel = self._setup_photos_panel()
-
-        # Panneau droit (contrôles)
-        right_panel = self._setup_right_panel()
-        right_panel.setMinimumWidth(280)
-        right_panel.setMaximumWidth(400)
-
-        # Ajout des panneaux
-        upper_layout.addWidget(left_panel)
-        upper_layout.addWidget(center_panel, stretch=1)
-        upper_layout.addWidget(right_panel)
-
-        return upper_widget
 
     def _setup_right_panel(self) -> QWidget:
         """Configure le panneau droit avec les contrôles ADB et les boutons photo."""
@@ -274,18 +254,6 @@ class MainWindow(QMainWindow):
         # lower_layout.addWidget(photo_controls, stretch=1)
 
         return lower_widget
-
-    def _setup_photos_panel(self) -> QWidget:
-        """Configure le panneau central des photos."""
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self.photo_viewer = PhotoViewer()
-        self.photo_viewer.loading_finished.connect(self._on_photos_loaded)
-        layout.addWidget(self.photo_viewer)
-
-        return panel
 
     def _setup_stream_dock(self) -> QDockWidget:
         """Configure le dock pour le streaming Android."""
@@ -524,15 +492,9 @@ class MainWindow(QMainWindow):
         """Gère la sélection d'un scellé."""
         logger.debug("Sélection d'un scellé")
 
-        # Réinitialise l'affichage
-        self.photo_viewer.load_photos({'scelle_ferme': [], 'contenu': [],
-                                       'objets': {}, 'reconditionnement': []})
         self.objects_list.clear()
 
         try:
-            # Désactive l'interface pendant le chargement
-            self.scelles_tree.setEnabled(False)
-
             item = self.scelles_model.itemFromIndex(index)
             if not item:
                 return
@@ -545,55 +507,16 @@ class MainWindow(QMainWindow):
                 self.current_scelle = scelle.path
                 self.objet_manager = ObjetEssai(scelle.path)
 
-                # Charge et organise les photos
-                photos_dict = self._organize_photos()
 
                 # Met à jour l'interface
                 self._update_photo_buttons()
                 self._load_existing_objects()
                 self.add_object_btn.setEnabled(True)
-                self.photo_viewer.load_photos(photos_dict)
 
         except Exception as e:
             logger.error(f"Erreur lors de la sélection du scellé: {e}")
             QMessageBox.critical(self, "Erreur", str(e))
             self.scelles_tree.setEnabled(True)
-
-    def _organize_photos(self) -> Dict[str, List[str]]:
-        """Organise les photos par catégorie."""
-        logger.debug("Organisation des photos")
-        photos = {
-            'scelle_ferme': [],
-            'contenu': [],
-            'objets': {},
-            'reconditionnement': []
-        }
-
-        if not self.current_scelle:
-            return photos
-
-        try:
-            for photo in self.scelle_manager.get_photos(
-                    self.current_scelle.name):
-                photo_path = str(photo.path)
-
-                # Détermine la catégorie de la photo
-                if photo.type.isalpha() and len(photo.type) == 1:
-                    # Photo d'objet
-                    if photo.type not in photos['objets']:
-                        photos['objets'][photo.type] = []
-                    photos['objets'][photo.type].append(photo_path)
-                elif "Ferme" in photo.type:
-                    photos['scelle_ferme'].append(photo_path)
-                elif "Contenu" in photo.type:
-                    photos['contenu'].append(photo_path)
-                elif "Reconditionne" in photo.type:
-                    photos['reconditionnement'].append(photo_path)
-
-        except Exception as e:
-            logger.error(f"Erreur lors de l'organisation des photos: {e}")
-
-        return photos
 
     def _load_existing_objects(self):
         """Charge la liste des objets existants."""
@@ -677,10 +600,6 @@ class MainWindow(QMainWindow):
             logger.debug(f"Objet sélectionné: {object_id}")
             self.statusBar().showMessage(f"Objet {object_id} sélectionné")
 
-    def _on_photos_loaded(self):
-        """Appelé quand le chargement des photos est terminé."""
-        logger.debug("Chargement des photos terminé")
-        self.scelles_tree.setEnabled(True)
 
     def _check_workspace(self):
         """Vérifie et initialise le dossier de travail."""
@@ -800,12 +719,7 @@ class MainWindow(QMainWindow):
 
             # Nettoie l'interface
             self.objects_list.clear()  # Vide la liste des objets
-            self.photo_viewer.load_photos({  # Réinitialise l'affichage des photos
-                'scelle_ferme': [],
-                'contenu': [],
-                'objets': {},
-                'reconditionnement': []
-            })
+
 
             # Met à jour les autres éléments de l'interface
             self._load_scelles(path)
@@ -891,28 +805,9 @@ class MainWindow(QMainWindow):
             if self.adb_manager.take_photo(save_path):
                 self.statusBar().showMessage(f"Photo sauvegardée : {file_name}")
 
-                # Ajoute uniquement la nouvelle photo à l'interface
-                self.photo_viewer.add_single_photo(str(save_path), prefix)
-
             else:
                 self.statusBar().showMessage("Erreur lors de la prise de photo")
 
         except Exception as e:
             logger.error(f"Erreur lors de la prise de photo : {e}")
             self.statusBar().showMessage("Erreur lors de la prise de photo")
-    def _refresh_photos(self):
-        """Rafraîchit l'affichage des photos après une nouvelle prise de vue."""
-        if not self.current_scelle:
-            return
-
-        try:
-            # Réorganise les photos
-            photos_dict = self._organize_photos()
-
-            # Met à jour l'affichage
-            self.photo_viewer.load_photos(photos_dict)
-
-            logger.info("Affichage des photos rafraîchi")
-
-        except Exception as e:
-            logger.error(f"Erreur lors du rafraîchissement des photos : {e}")

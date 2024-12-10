@@ -20,7 +20,6 @@ class ADBStatusWidget(QWidget):
     """Widget affichant l'état de la connexion ADB."""
 
     connection_changed = pyqtSignal(bool)
-    # preview_toggled = pyqtSignal(bool)
     stream_error = pyqtSignal(str)        # Pour notifier des erreurs de streaming
 
     def __init__(self, adb_manager=None, parent=None):
