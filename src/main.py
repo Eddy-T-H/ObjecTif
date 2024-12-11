@@ -4,6 +4,8 @@ Il coordonne le démarrage de tous les composants.
 """
 
 import sys
+
+import os
 from loguru import logger
 from PyQt6.QtWidgets import QApplication
 
@@ -21,8 +23,6 @@ class LogBuffer:
     def flush(self):
         pass
 
-# Variable globale pour stocker les logs
-log_buffer = LogBuffer()
 
 def setup_logging(config: AppConfig):
     """
@@ -42,26 +42,35 @@ def setup_logging(config: AppConfig):
         "<level>{message}</level>"
     )
 
-
-    # Ajoute le handler pour le buffer
-    logger.add(log_buffer.write, format=log_format)
-
-    # Logging vers la console (toujours en DEBUG pour le développement)
-    logger.add(
-        sys.stderr,
-        level="DEBUG",
-        format=log_format,
-        diagnose=True  # Pour avoir les stack traces
-    )
-
-    # Logging vers le fichier
-    logger.add(
-        config.paths.logs_path / "objectif.log",
-        rotation="10 MB",
-        level="DEBUG",
-        format=log_format,
-        diagnose=True
-    )
+    # Détermine si nous sommes dans un exe PyInstaller
+    if getattr(sys, 'frozen', False):
+        # Nous sommes dans un exe -> log vers un fichier
+        log_path = os.path.join(os.path.dirname(sys.executable), "objectif.log")
+        logger.add(
+            log_path,
+            rotation="10 MB",
+            level="DEBUG",
+            format=log_format,
+            diagnose=True
+        )
+    else:
+        # Mode développement -> utilise le buffer et la console
+        log_buffer = LogBuffer()
+        logger.add(log_buffer.write, format=log_format)
+        logger.add(
+            sys.stderr,
+            level="DEBUG",
+            format=log_format,
+            diagnose=True
+        )
+        logger.add(
+            config.paths.logs_path / "objectif.log",
+            rotation="10 MB",
+            level="DEBUG",
+            format=log_format,
+            diagnose=True
+        )
+        return log_buffer
 
 def main():
     """
@@ -75,7 +84,8 @@ def main():
     config = AppConfig.load_config()
 
     # Met en place le système de logging
-    setup_logging(config)
+    log_buffer = setup_logging(config)
+
 
     # Log le démarrage
     logger.info("Démarrage de l'application ObjecTif")

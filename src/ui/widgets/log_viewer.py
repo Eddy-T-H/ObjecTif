@@ -36,8 +36,10 @@ class ColoredLogViewer(QPlainTextEdit):
 
     def load_initial_logs(self, buffer):
         """Charge les logs du buffer dans l'interface."""
-        for message in buffer.logs:
-            self.append_log(message)
+        if buffer and hasattr(buffer,
+                              'logs'):  # Vérifie si le buffer existe et a des logs
+            for message in buffer.logs:
+                self.append_log(message)
 
 
 class QtHandler:

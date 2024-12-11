@@ -1,3 +1,5 @@
+import sys
+
 from PyQt6.QtCore import QProcess, pyqtSignal, QObject
 from pathlib import Path
 from loguru import logger
@@ -200,32 +202,18 @@ class StreamWindow(QObject):
     def _get_scrcpy_path(self):
         """
         Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
-
-        Returns:
-            str: Chemin vers l'exécutable scrcpy
-
-        Raises:
-            FileNotFoundError: Si scrcpy n'est pas trouvé
         """
         try:
-            current_dir = Path(__file__).resolve()
-            root_found = False
+            if getattr(sys, 'frozen', False):
+                # Si nous sommes dans un exe compilé
+                base_path = Path(sys._MEIPASS)
+            else:
+                # En développement
+                base_path = Path(__file__).resolve()
+                while base_path.name != "ObjecTif" and base_path.parent != base_path:
+                    base_path = base_path.parent
 
-            # Recherche du dossier racine avec protection contre les boucles infinies
-            iteration_limit = 50
-            iteration_count = 0
-
-            while current_dir.name != "ObjecTif" and current_dir.parent != current_dir:
-                current_dir = current_dir.parent
-                iteration_count += 1
-                if iteration_count >= iteration_limit:
-                    raise FileNotFoundError(
-                        "Limite de recherche du dossier racine atteinte")
-
-            if current_dir.name != "ObjecTif":
-                raise FileNotFoundError("Dossier racine ObjecTif non trouvé")
-
-            scrcpy_path = current_dir / "scrcpy" / "scrcpy.exe"
+            scrcpy_path = base_path / "scrcpy" / "scrcpy.exe"
 
             if not scrcpy_path.exists():
                 raise FileNotFoundError(f"scrcpy.exe non trouvé à {scrcpy_path}")
@@ -235,3 +223,42 @@ class StreamWindow(QObject):
         except Exception as e:
             logger.error(f"Erreur lors de la recherche de scrcpy: {e}")
             raise
+
+    # def _get_scrcpy_path(self):
+    #     """
+    #     Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
+    #
+    #     Returns:
+    #         str: Chemin vers l'exécutable scrcpy
+    #
+    #     Raises:
+    #         FileNotFoundError: Si scrcpy n'est pas trouvé
+    #     """
+    #     try:
+    #         current_dir = Path(__file__).resolve()
+    #         root_found = False
+    #
+    #         # Recherche du dossier racine avec protection contre les boucles infinies
+    #         iteration_limit = 50
+    #         iteration_count = 0
+    #
+    #         while current_dir.name != "ObjecTif" and current_dir.parent != current_dir:
+    #             current_dir = current_dir.parent
+    #             iteration_count += 1
+    #             if iteration_count >= iteration_limit:
+    #                 raise FileNotFoundError(
+    #                     "Limite de recherche du dossier racine atteinte")
+    #
+    #         if current_dir.name != "ObjecTif":
+    #             raise FileNotFoundError("Dossier racine ObjecTif non trouvé")
+    #
+    #         scrcpy_path = current_dir / "scrcpy" / "scrcpy.exe"
+    #
+    #         if not scrcpy_path.exists():
+    #             raise FileNotFoundError(f"scrcpy.exe non trouvé à {scrcpy_path}")
+    #
+    #         return str(scrcpy_path)
+    #
+    #     except Exception as e:
+    #         logger.error(f"Erreur lors de la recherche de scrcpy: {e}")
+    #         raise

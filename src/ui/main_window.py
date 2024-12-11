@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         """
         super().__init__()
         self.config = config
-        self.log_buffer = log_buffer  # Stocke le buffer
+        self.log_buffer = log_buffer  # Peut être None en mode compilé
 
         # Créer une seule instance d'ADBManager qui sera partagée
         self.adb_manager = ADBManager()
@@ -237,7 +237,10 @@ class MainWindow(QMainWindow):
     def _setup_log_viewer(self) -> QPlainTextEdit:
         """Configure le visualiseur de logs."""
         log_viewer = ColoredLogViewer()
-        log_viewer.load_initial_logs(self.log_buffer)
+
+        # Charge les logs initiaux seulement si le buffer existe
+        if self.log_buffer:
+            log_viewer.load_initial_logs(self.log_buffer)
 
         # Configuration du handler Loguru
         logger.add(
