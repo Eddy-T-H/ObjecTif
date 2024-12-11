@@ -22,6 +22,7 @@ from .dialogs.create_affaire_dialog import CreateAffaireDialog
 from .dialogs.create_scelle_dialog import CreateScelleDialog
 from .widgets.adb_status import ADBStatusWidget
 from .widgets.log_viewer import ColoredLogViewer, QtHandler
+from .widgets.photo_list import PhotoListWidget
 
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
@@ -61,7 +62,8 @@ class MainWindow(QMainWindow):
         self.current_object: Optional[str] = None
 
         self.setWindowTitle(f"{config.app_name} v{config.app_version}")
-        self.setMinimumSize(1920, 1080)
+        self.setMinimumSize(800, 600)
+        self.resize(1280, 800)  # Taille par défaut au lancement
 
         # Initialisation de l'interface
         self._initialize_ui()
@@ -119,9 +121,10 @@ class MainWindow(QMainWindow):
     def _setup_right_panel(self) -> QWidget:
         """Configure le panneau droit avec les contrôles ADB et les boutons photo."""
         right_panel = QWidget()
+        right_panel.setMinimumWidth(200)
         layout = QVBoxLayout(right_panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
         # Widget de status ADB en haut
         self.adb_status = ADBStatusWidget(self.adb_manager)
@@ -244,7 +247,6 @@ class MainWindow(QMainWindow):
 
         return log_viewer
 
-
     def _setup_left_panel(self):
         """
         Configure le panneau gauche avec une navigation à trois niveaux :
@@ -252,56 +254,79 @@ class MainWindow(QMainWindow):
         - Scellés
         - Objets d'essai
         """
-        panel  = QWidget()
-        layout  = QVBoxLayout(panel)
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(4, 4, 4, 4)  # Réduire les marges
+        layout.setSpacing(4)  # Réduire l'espacement
 
-        # Section du dossier de travail (inchangée)
+        # Section du dossier de travail plus compacte
         workspace_widget = QWidget()
         workspace_layout = QHBoxLayout(workspace_widget)
-        self.workspace_label = QLabel("Non configuré")
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.setSpacing(4)
+
+        # Créer et configurer les widgets du workspace
+        workspace_label_title = QLabel("Dossier de travail :")
+        self.workspace_label = QLabel("Non configuré")  # Important: assigner à self
         change_workspace_btn = QPushButton("Changer")
         change_workspace_btn.clicked.connect(self._select_workspace)
 
-        workspace_layout.addWidget(QLabel("Dossier de travail :"))
+        # Ajouter les widgets au layout du workspace
+        workspace_layout.addWidget(workspace_label_title)
         workspace_layout.addWidget(self.workspace_label, stretch=1)
         workspace_layout.addWidget(change_workspace_btn)
+
+        # Ajouter le widget workspace au layout principal
+        workspace_widget.setLayout(workspace_layout)
         layout.addWidget(workspace_widget)
 
-
-        # Splitter pour les trois zones
+        # Splitter pour les trois zones avec contraintes minimales réduites
         splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.setChildrenCollapsible(False)
 
         # Zone des affaires
         cases_group = self._setup_cases_group()
+        cases_group.setMinimumHeight(100)
         splitter.addWidget(cases_group)
 
         # Zone des scellés
         scelles_group = self._setup_scelles_group()
+        scelles_group.setMinimumHeight(100)
         splitter.addWidget(scelles_group)
 
         # Zone des objets
         objects_group = self._setup_objects_group()
+        objects_group.setMinimumHeight(100)
         splitter.addWidget(objects_group)
 
-
-        splitter.setSizes([300, 200, 200])
+        # Proportions plus équilibrées
+        splitter.setSizes([200, 200, 200])
         layout.addWidget(splitter)
 
-
-        # Définition des tailles relatives initiales
-        splitter.setSizes([300, 200, 200])
-        layout.addWidget(splitter)
-
+        panel.setMinimumWidth(200)  # Largeur minimale du panneau gauche
         return panel
 
     def _setup_cases_group(self) -> QGroupBox:
         """Configure la zone des affaires."""
         group = QGroupBox("Dossiers")
         layout = QVBoxLayout(group)
+        layout.setSpacing(4)
+
+        # Layout horizontal pour les boutons
+        btn_layout = QHBoxLayout()
 
         add_btn = QPushButton("Nouveau Dossier")
         add_btn.clicked.connect(self._create_new_affaire)
-        layout.addWidget(add_btn)
+        btn_layout.addWidget(add_btn)
+
+        open_btn = QPushButton("Ouvrir dans l'explorateur")
+        open_btn.setEnabled(False)  # Désactivé par défaut
+        open_btn.clicked.connect(lambda: self._open_explorer(
+            self.current_case_path) if self.current_case_path else None)
+        btn_layout.addWidget(open_btn)
+        self.case_explorer_btn = open_btn  # Gardez une référence pour l'activer/désactiver
+
+        layout.addLayout(btn_layout)
 
         self.cases_tree = QTreeView()
         self.cases_model = QFileSystemModel()
@@ -315,39 +340,96 @@ class MainWindow(QMainWindow):
         return group
 
     def _setup_scelles_group(self) -> QGroupBox:
-        """Configure la zone des scellés."""
+        """Configure la zone des scellés avec gestion améliorée du redimensionnement."""
         group = QGroupBox("Scellés")
+        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(group)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
+        # Bouton d'ajout
         add_btn = QPushButton("Ajouter un scellé (nom de dossier)")
         add_btn.clicked.connect(self._create_new_scelle)
+        add_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(add_btn)
 
+        # Splitter horizontal
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(
+            False)  # Empêche de réduire complètement les widgets
+        splitter.setSizePolicy(QSizePolicy.Policy.Expanding,
+                               QSizePolicy.Policy.Expanding)
+
+        # Arborescence des scellés
         self.scelles_tree = QTreeView()
+        self.scelles_tree.setMinimumWidth(150)
+        self.scelles_tree.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                        QSizePolicy.Policy.Expanding)
         self.scelles_model = QStandardItemModel()
         self.scelles_model.setHorizontalHeaderLabels(['Scellés'])
         self.scelles_tree.setModel(self.scelles_model)
         self.scelles_tree.clicked.connect(self._on_scelle_selected)
-        layout.addWidget(self.scelles_tree)
+        splitter.addWidget(self.scelles_tree)
 
+        # Liste des photos
+        self.scelle_photos = PhotoListWidget("Photos du scellé:")
+        splitter.addWidget(self.scelle_photos)
+
+        # Ajuster les tailles minimales
+        self.scelles_tree.setMinimumWidth(100)  # Au lieu de 150
+        self.scelle_photos.setMinimumWidth(100)  # Taille minimale réduite
+
+        # Définit les proportions initiales
+        splitter.setSizes([100, 100])
+
+        layout.addWidget(splitter)
         return group
 
     def _setup_objects_group(self) -> QGroupBox:
-        """Configure la zone des objets."""
+        """Configure la zone des objets avec gestion améliorée du redimensionnement."""
         group = QGroupBox("Objets d'essai")
+        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(group)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
+        # Bouton d'ajout
         self.add_object_btn = QPushButton("Ajouter un objet d'essai")
         self.add_object_btn.clicked.connect(self._add_new_object)
         self.add_object_btn.setEnabled(False)
+        self.add_object_btn.setSizePolicy(QSizePolicy.Policy.Preferred,
+                                          QSizePolicy.Policy.Fixed)
         layout.addWidget(self.add_object_btn)
 
+        # Splitter horizontal
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        splitter.setSizePolicy(QSizePolicy.Policy.Expanding,
+                               QSizePolicy.Policy.Expanding)
+
+        # Liste des objets
         self.objects_list = QTreeWidget()
+        self.objects_list.setMinimumWidth(150)
+        self.objects_list.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                        QSizePolicy.Policy.Expanding)
         self.objects_list.setHeaderLabels(["Objets"])
         self.objects_list.itemClicked.connect(self._on_object_selected)
-        layout.addWidget(self.objects_list)
+        splitter.addWidget(self.objects_list)
 
+        # Liste des photos
+        self.object_photos = PhotoListWidget("Photos de l'objet:")
+        splitter.addWidget(self.object_photos)
+
+        # Ajuster les tailles minimales
+        self.objects_list.setMinimumWidth(100)  # Au lieu de 150
+        self.object_photos.setMinimumWidth(100)  # Taille minimale réduite
+
+        # Ajuster les proportions du splitter
+        splitter.setSizes([100, 100])  # Proportions plus équilibrées
+
+        layout.addWidget(splitter)
         return group
+
 
     def _create_new_affaire(self):
         """
@@ -457,6 +539,7 @@ class MainWindow(QMainWindow):
         logger.debug("Sélection d'un scellé")
 
         self.objects_list.clear()
+        self.object_photos.clear()  # Vide la liste des photos d'objet
 
         try:
             item = self.scelles_model.itemFromIndex(index)
@@ -471,16 +554,33 @@ class MainWindow(QMainWindow):
                 self.current_scelle = scelle.path
                 self.objet_manager = ObjetEssai(scelle.path)
 
-
                 # Met à jour l'interface
                 self._update_photo_buttons()
                 self._load_existing_objects()
                 self.add_object_btn.setEnabled(True)
 
+                # Met à jour la liste des photos du scellé (uniquement photos générales)
+                self._update_scelle_photos()
+
         except Exception as e:
             logger.error(f"Erreur lors de la sélection du scellé: {e}")
             QMessageBox.critical(self, "Erreur", str(e))
             self.scelles_tree.setEnabled(True)
+
+    def _update_scelle_photos(self):
+        """Met à jour la liste des photos du scellé en excluant les photos d'objets."""
+        photos = []
+        if self.current_scelle and self.current_scelle.exists():
+            for photo in self.current_scelle.glob("*.jpg"):
+                # Vérifie si le nom de la photo contient un identifiant d'objet
+                stem_parts = photo.stem.split('_')
+                # On regarde si l'avant-dernier élément est une lettre seule (identificateur d'objet)
+                if len(stem_parts) >= 2:
+                    type_id = stem_parts[-2]
+                    if not (len(type_id) == 1 and type_id.isalpha()):
+                        photos.append(photo.name)
+
+        self.scelle_photos.update_photos(photos)
 
     def _load_existing_objects(self):
         """Charge la liste des objets existants."""
@@ -553,17 +653,23 @@ class MainWindow(QMainWindow):
     def _on_object_selected(self, item):
         """
         Gère la sélection d'un objet dans la liste.
-        Active le bouton de photo d'objet.
+        Active le bouton de photo d'objet et met à jour la liste des photos.
         """
         logger.debug("Sélection d'un objet")
 
         object_id = item.data(0, Qt.ItemDataRole.UserRole)
-        if object_id:
+        if object_id and self.current_scelle:
             self.current_object = object_id
             self._update_photo_buttons()
             logger.debug(f"Objet sélectionné: {object_id}")
-            self.statusBar().showMessage(f"Objet {object_id} sélectionné")
 
+            # Met à jour la liste des photos de l'objet
+            photos = []
+            for photo in self.current_scelle.glob(f"*_{object_id}_*.jpg"):
+                photos.append(photo.name)
+            self.object_photos.update_photos(photos)
+
+            self.statusBar().showMessage(f"Objet {object_id} sélectionné")
 
     def _check_workspace(self):
         """Vérifie et initialise le dossier de travail."""
@@ -677,6 +783,9 @@ class MainWindow(QMainWindow):
             self.current_scelle = None  # Réinitialise le scellé sélectionné
             self.current_object = None  # Réinitialise l'objet sélectionné
 
+            # Active le bouton d'explorateur
+            self.case_explorer_btn.setEnabled(True)
+
             # Réinitialise les gestionnaires
             self.scelle_manager = Scelle(path)
             self.objet_manager = None  # Réinitialise le gestionnaire d'objets
@@ -768,10 +877,35 @@ class MainWindow(QMainWindow):
             # Prend la photo
             if self.adb_manager.take_photo(save_path):
                 self.statusBar().showMessage(f"Photo sauvegardée : {file_name}")
-
+                # Met à jour la liste appropriée selon le type de photo
+                if photo_type == 'objet':
+                    # Met à jour la liste des photos d'objet
+                    photos = []
+                    for photo in self.current_scelle.glob(
+                            f"*_{self.current_object}_*.jpg"):
+                        photos.append(photo.name)
+                    self.object_photos.update_photos(photos)
+                else:
+                    # Met à jour la liste des photos du scellé
+                    self._update_scelle_photos()
             else:
                 self.statusBar().showMessage("Erreur lors de la prise de photo")
 
         except Exception as e:
             logger.error(f"Erreur lors de la prise de photo : {e}")
             self.statusBar().showMessage("Erreur lors de la prise de photo")
+
+    def _open_explorer(self, path: Path):
+        """Ouvre l'explorateur Windows au chemin spécifié."""
+        try:
+            if not path.exists():
+                logger.warning(f"Le chemin n'existe pas: {path}")
+                return
+
+            # Utilise la commande explorer de Windows
+            import os
+            os.startfile(str(path))
+            logger.info(f"Explorateur ouvert sur: {path}")
+        except Exception as e:
+            logger.error(f"Erreur lors de l'ouverture de l'explorateur: {e}")
+            self.statusBar().showMessage("Erreur lors de l'ouverture de l'explorateur")
