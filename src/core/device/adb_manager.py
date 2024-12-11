@@ -140,7 +140,6 @@ class ADBManager:
 
     def disconnect(self):
         """Déconnecte l'appareil et arrête scrcpy."""
-        self.stop_scrcpy()
         try:
             # Arrête le serveur ADB
             if self.adb_command:

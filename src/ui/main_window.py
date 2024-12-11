@@ -23,7 +23,6 @@ from .dialogs.create_scelle_dialog import CreateScelleDialog
 from .widgets.adb_status import ADBStatusWidget
 from .widgets.log_viewer import ColoredLogViewer, QtHandler
 
-from .widgets.stream_window import StreamWindow
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
 from ..core.evidence.objet import ObjetEssai
@@ -60,10 +59,6 @@ class MainWindow(QMainWindow):
         self.current_case_path: Optional[Path] = None
         self.current_scelle: Optional[EvidenceItem] = None
         self.current_object: Optional[str] = None
-
-        # Initialisation des composants de l'interface
-        self.stream_window = None  # Sera initialisé dans _setup_stream_dock
-        self.stream_dock = None    # Sera initialisé dans _initialize_ui
 
         self.setWindowTitle(f"{config.app_name} v{config.app_version}")
         self.setMinimumSize(1920, 1080)
@@ -120,25 +115,6 @@ class MainWindow(QMainWindow):
     def _handle_stream_error(self, error_msg: str):
         """Affiche les erreurs de streaming dans la barre d'état."""
         self.statusBar().showMessage(f"Erreur de streaming : {error_msg}")
-
-    def _handle_preview_toggle(self, enabled: bool):
-        """Gère l'activation/désactivation du streaming."""
-        logger.debug(f"Handling preview toggle: {enabled}")
-        try:
-            if enabled:
-                success = self.stream_window.start_stream()
-                if not success:
-                    # En cas d'échec, réinitialiser le bouton
-                    self.adb_status.preview_active = False
-                    self.adb_status.preview_btn.setText("Prévisualisation")
-            else:
-                self.stream_window.stop_stream()
-        except Exception as e:
-            logger.error(f"Erreur lors de la gestion du streaming: {e}")
-            # Réinitialiser le bouton en cas d'erreur
-            self.adb_status.preview_active = False
-            self.adb_status.preview_btn.setText("Prévisualisation")
-
 
     def _setup_right_panel(self) -> QWidget:
         """Configure le panneau droit avec les contrôles ADB et les boutons photo."""
@@ -254,18 +230,6 @@ class MainWindow(QMainWindow):
         # lower_layout.addWidget(photo_controls, stretch=1)
 
         return lower_widget
-
-    def _setup_stream_dock(self) -> QDockWidget:
-        """Configure le dock pour le streaming Android."""
-        self.stream_window = StreamWindow(adb_manager=self.adb_manager, parent=self)
-        stream_dock = QDockWidget("Android Stream", self)
-        stream_dock.setWidget(self.stream_window)
-        stream_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
-            QDockWidget.DockWidgetFeature.DockWidgetMovable
-        )
-        return stream_dock
-
 
     def _setup_log_viewer(self) -> QPlainTextEdit:
         """Configure le visualiseur de logs."""
