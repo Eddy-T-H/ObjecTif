@@ -213,21 +213,19 @@ class ADBManager:
             return None
 
     def disconnect(self):
-        """Déconnecte l'appareil et arrête scrcpy."""
+        """
+        Déconnecte l'appareil en gardant ADB actif.
+        Ne fait jamais de kill-server pour garder ADB disponible.
+        """
         try:
-            # Arrête le serveur ADB
-            if self.adb_command:
-                subprocess.run(
-                    f'"{self.adb_command}" kill-server',
-                    shell=True,
-                    capture_output=True,
-                    text=True
-                )
-            logger.info("Serveur ADB arrêté")
+            logger.info("Déconnexion de l'appareil - ADB reste actif")
+            # Reset juste la référence de l'appareil
+            # Le serveur ADB reste actif pour les prochaines connexions
+            self.current_device = None
+
         except Exception as e:
-            logger.error(f"Erreur lors de l'arrêt du serveur ADB: {e}")
-        finally:
-            self.device = None
+            logger.error(f"Erreur lors de la déconnexion: {e}")
+            # Même en cas d'erreur, on reset la référence
             self.current_device = None
 
     def _list_dcim_photos(self) -> list[str]:

@@ -6,10 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="refactor(ui): restructure interface en panels modulaires avec design system unifié&#10;&#10;- Découpe MainWindow (1200→280 lignes) en panels spécialisés&#10;- Ajoute NavigationPanel, ControlPanel, LogPanel&#10;- Implémente design system centralisé avec tokens cohérents&#10;- Unifie styles boutons/groupes/listes dans toute l'app&#10;- Améliore maintenabilité et réutilisabilité des composants">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/panels/control_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/panels/control_panel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/panels/navigation_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/panels/navigation_panel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/theme/design_system.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/theme/design_system.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/stream_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/stream_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,7 +104,7 @@
       <workItem from="1733815023315" duration="9402000" />
       <workItem from="1733905017517" duration="5454000" />
       <workItem from="1750144826384" duration="1835000" />
-      <workItem from="1750146705062" duration="6967000" />
+      <workItem from="1750146705062" duration="8337000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -332,7 +330,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750152826262</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="refactor(ui): restructure interface en panels modulaires avec design system unifié&#10;&#10;- Découpe MainWindow (1200→280 lignes) en panels spécialisés&#10;- Ajoute NavigationPanel, ControlPanel, LogPanel&#10;- Implémente design system centralisé avec tokens cohérents&#10;- Unifie styles boutons/groupes/listes dans toute l'app&#10;- Améliore maintenabilité et réutilisabilité des composants">
+      <option name="closed" value="true" />
+      <created>1750153726717</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1750153726717</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -368,7 +374,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750153667084" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750154766064" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1750145386722" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />

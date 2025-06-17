@@ -7,12 +7,18 @@ from loguru import logger
 
 
 class StreamWindow(QObject):
-    """Gestionnaire du streaming Android via scrcpy.
+    """Gestionnaire du streaming Android via scrcpy avec signaux détaillés.
 
     Cette classe utilise scrcpy pour créer une fenêtre de prévisualisation du périphérique
     Android. Elle gère le lancement et l'arrêt du processus scrcpy, ainsi que la gestion
-    des erreurs potentielles.
+    des erreurs potentielles avec des signaux détaillés pour le feedback utilisateur.
     """
+
+    # Signaux pour le feedback détaillé
+    starting = pyqtSignal()  # Démarrage en cours
+    started = pyqtSignal()  # Démarré avec succès
+    stopping = pyqtSignal()  # Arrêt en cours
+    stopped = pyqtSignal()  # Arrêté avec succès
 
     # Signal émis lors de la fermeture de la fenêtre par l'utilisateur
     window_closed = pyqtSignal()
@@ -43,12 +49,13 @@ class StreamWindow(QObject):
 
     def start_stream(self):
         """
-		Démarre le streaming dans une fenêtre scrcpy.
-		Thread-safe pour éviter les lancements multiples.
+        Démarre le streaming dans une fenêtre scrcpy.
+        Thread-safe pour éviter les lancements multiples.
+        Émet des signaux pour le feedback utilisateur.
 
-		Returns:
-			bool: True si le démarrage réussit, False sinon
-		"""
+        Returns:
+            bool: True si le démarrage réussit, False sinon
+        """
         # Acquisition non-bloquante du verrou
         if not self._start_lock.acquire(blocking=False):
             logger.warning("Démarrage déjà en cours, requête ignorée")
@@ -57,9 +64,13 @@ class StreamWindow(QObject):
         try:
             logger.debug("====== Démarrage stream ======")
 
+            # Émission du signal de démarrage
+            self.starting.emit()
+
             # Vérification de la connexion ADB
             if not self.adb_manager.is_connected():
                 logger.warning("Tentative de streaming sans connexion ADB")
+                self.critical_error.emit("Aucune connexion ADB active")
                 return False
 
             # Arrêt de tout processus existant
@@ -81,13 +92,18 @@ class StreamWindow(QObject):
 
                 # Configuration des arguments
                 args = [
-                    "--window-title", "Prévisualisation Android",
-                    "--window-width", "400",
-                    "--window-height", "800",
-                    "--render-driver", "software",
+                    "--window-title",
+                    "Prévisualisation Android",
+                    "--window-width",
+                    "400",
+                    "--window-height",
+                    "800",
+                    "--render-driver",
+                    "software",
                     "--stay-awake",
-                    "--serial", self.adb_manager.current_device,
-                    "--always-on-top"
+                    "--serial",
+                    self.adb_manager.current_device,
+                    "--always-on-top",
                 ]
 
                 # Configuration du répertoire de travail
@@ -102,6 +118,7 @@ class StreamWindow(QObject):
                     raise TimeoutError("Timeout lors du démarrage de scrcpy")
 
                 logger.info("Streaming démarré avec succès")
+                self.started.emit()  # Signal de succès
                 return True
 
             except Exception as e:
@@ -112,6 +129,7 @@ class StreamWindow(QObject):
 
         except Exception as e:
             logger.error(f"Erreur inattendue lors du démarrage du stream: {e}")
+            self.critical_error.emit(f"Erreur inattendue: {str(e)}")
             return False
 
         finally:
@@ -120,12 +138,13 @@ class StreamWindow(QObject):
 
     def stop_stream(self):
         """
-		Arrête proprement le streaming en cours.
-		Thread-safe.
-		"""
+        Arrête proprement le streaming en cours.
+        Thread-safe. Émet des signaux pour le feedback utilisateur.
+        """
         if self.scrcpy_process is not None:
             try:
                 logger.debug("Arrêt du stream demandé")
+                self.stopping.emit()  # Signal d'arrêt en cours
                 self._stopping_manually = True
 
                 # Garde une référence locale pour le nettoyage
@@ -140,23 +159,26 @@ class StreamWindow(QObject):
 
                 process.deleteLater()
                 logger.info("Streaming arrêté avec succès")
+                self.stopped.emit()  # Signal d'arrêt réussi
 
             except Exception as e:
                 logger.error(f"Erreur lors de l'arrêt du stream: {e}")
+                self.critical_error.emit(f"Erreur d'arrêt: {str(e)}")
             finally:
                 self._stopping_manually = False
 
     def _on_process_finished(self, exit_code, exit_status):
         """
-		Gère la fin du processus scrcpy en distinguant les différents cas de sortie.
+        Gère la fin du processus scrcpy en distinguant les différents cas de sortie.
 
-		Les codes de sortie de scrcpy :
-		0 : Sortie normale (fenêtre fermée par l'utilisateur)
-		1 : Erreur d'initialisation
-		2 : Sortie normale après terminate()
-		"""
+        Les codes de sortie de scrcpy :
+        0 : Sortie normale (fenêtre fermée par l'utilisateur)
+        1 : Erreur d'initialisation
+        2 : Sortie normale après terminate()
+        """
         logger.debug(
-            f"Processus scrcpy terminé (code: {exit_code}, status: {exit_status})")
+            f"Processus scrcpy terminé (code: {exit_code}, status: {exit_status})"
+        )
 
         try:
             # Nettoyage du processus
@@ -168,10 +190,12 @@ class StreamWindow(QObject):
             if self._stopping_manually:
                 # Si l'arrêt était demandé, pas d'action particulière nécessaire
                 logger.debug("Arrêt normal du streaming")
+                # Le signal stopped a déjà été émis dans stop_stream()
             elif exit_code == 0:
                 # Fermeture normale par l'utilisateur
                 logger.debug("Fenêtre fermée par l'utilisateur")
-                self.window_closed.emit()
+                self.stopped.emit()  # Signal d'arrêt
+                self.window_closed.emit()  # Signal spécifique de fermeture utilisateur
             elif exit_code == 1:
                 # Erreur réelle
                 error_msg = "Erreur d'initialisation de scrcpy"
@@ -202,7 +226,7 @@ class StreamWindow(QObject):
         Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
         """
         try:
-            if getattr(sys, 'frozen', False):
+            if getattr(sys, "frozen", False):
                 # Si nous sommes dans un exe compilé
                 base_path = Path(sys._MEIPASS)
             else:
@@ -221,3 +245,10 @@ class StreamWindow(QObject):
         except Exception as e:
             logger.error(f"Erreur lors de la recherche de scrcpy: {e}")
             raise
+
+    def is_running(self):
+        """Vérifie si le streaming est en cours."""
+        return (
+            self.scrcpy_process is not None
+            and self.scrcpy_process.state() == QProcess.ProcessState.Running
+        )
