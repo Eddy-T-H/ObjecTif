@@ -105,20 +105,15 @@ class ADBStatusWidget(QWidget):
         connect_layout.setSpacing(8)
 
         # Bouton de rafraîchissement - SUPPRESSION du setStyleSheet
-        self.refresh_btn = QPushButton("🔄")
-        self.refresh_btn.setToolTip("Rafraîchir la liste des appareils")
-        self.refresh_btn.setFixedHeight(32)
-        self.refresh_btn.setFixedWidth(40)
+        self.refresh_btn = QPushButton("Rafraîchir")
         self.refresh_btn.clicked.connect(self._refresh_devices)
         # qt-material applique le style automatiquement
 
-        # Bouton principal de connexion - SUPPRESSION du setStyleSheet
+        # Bouton principal de connexion - SUPPRESSION du setStylesheet
         self.connect_btn = QPushButton("Se connecter")
-        self.connect_btn.setFixedHeight(36)
-        self.connect_btn.setMinimumWidth(120)
+
         self.connect_btn.clicked.connect(self._toggle_connection)
         # qt-material applique le style automatiquement
-
         # Bouton d'erreur ADB - SUPPRESSION du setStyleSheet
         self.retry_adb_btn = QPushButton("⚠️ Réessayer ADB")
         self.retry_adb_btn.setFixedHeight(32)

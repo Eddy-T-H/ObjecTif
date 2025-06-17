@@ -1,7 +1,7 @@
 # src/main.py
 """
-Le fichier main.py est le point d'entrée principal de l'application.
-Il coordonne le démarrage de tous les composants avec thème automatique.
+Point d'entrée utilisant le thème natif Qt6.
+Qt6 détecte automatiquement le mode sombre/clair du système.
 """
 
 import sys
@@ -11,7 +11,11 @@ from PyQt6.QtWidgets import QApplication
 
 from src.config import AppConfig
 from src.ui.main_window import MainWindow
-from src.ui.theme.theme_manager import apply_system_theme
+from src.ui.theme.native_theme import (
+    apply_native_qt_theme,
+    setup_native_theme_attributes,
+    detect_system_theme_info,
+)
 
 
 class LogBuffer:
@@ -26,9 +30,7 @@ class LogBuffer:
 
 
 def setup_logging(config: AppConfig):
-    """
-    Configure le système de journalisation.
-    """
+    """Configure le système de journalisation."""
     logger.remove()
 
     log_format = (
@@ -38,39 +40,30 @@ def setup_logging(config: AppConfig):
         "<level>{message}</level>"
     )
 
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # Mode compilé -> log vers fichier
         log_path = os.path.join(os.path.dirname(sys.executable), "objectif.log")
         logger.add(
-            log_path,
-            rotation="10 MB",
-            level="DEBUG",
-            format=log_format,
-            diagnose=True
+            log_path, rotation="10 MB", level="DEBUG", format=log_format, diagnose=True
         )
     else:
         # Mode développement -> buffer + console + fichier
         log_buffer = LogBuffer()
         logger.add(log_buffer.write, format=log_format)
-        logger.add(
-            sys.stderr,
-            level="DEBUG",
-            format=log_format,
-            diagnose=True
-        )
+        logger.add(sys.stderr, level="DEBUG", format=log_format, diagnose=True)
         logger.add(
             config.paths.logs_path / "objectif.log",
             rotation="10 MB",
             level="DEBUG",
             format=log_format,
-            diagnose=True
+            diagnose=True,
         )
         return log_buffer
 
 
 def main():
     """
-    Fonction principale avec thème automatique.
+    Fonction principale utilisant le thème natif Qt6.
     """
     # Charge la configuration globale
     config = AppConfig.load_config()
@@ -85,12 +78,23 @@ def main():
     # Crée l'application Qt
     app = QApplication(sys.argv)
 
-    # === APPLICATION DU THÈME AUTOMATIQUE ===
-    theme_applied = apply_system_theme(app)
+    # === CONFIGURATION DU THÈME NATIF QT6 ===
+
+    # Configure les attributs pour une meilleure détection du thème
+    setup_native_theme_attributes(app)
+
+    # Détecte et log les informations du thème système
+    theme_info = detect_system_theme_info(app)
+    logger.info(f"Thème système détecté: {theme_info['theme_name']}")
+    logger.debug(f"Détails du thème: {theme_info}")
+
+    # Applique les améliorations au thème natif
+    theme_applied = apply_native_qt_theme(app)
+
     if theme_applied:
-        logger.info("Thème qt-material appliqué automatiquement")
+        logger.info("Thème natif Qt6 appliqué avec améliorations")
     else:
-        logger.info("Utilisation du thème Qt par défaut")
+        logger.warning("Utilisation du thème Qt6 par défaut sans améliorations")
 
     # Crée et affiche la fenêtre principale
     window = MainWindow(config, log_buffer)
