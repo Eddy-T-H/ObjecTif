@@ -4,9 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="V1">
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Correction bug création dossier crash">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/AdbWinApi.dll" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/AdbWinUsbApi.dll" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/NOTICE.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/adb.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/etc1tool.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/fastboot.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/hprof-conv.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/libwinpthread-1.dll" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/make_f2fs.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/make_f2fs_casefold.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/mke2fs.conf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/mke2fs.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/source.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/platform-tools/sqlite3.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/device/adb_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/device/adb_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +117,7 @@
       <workItem from="1733728896875" duration="15141000" />
       <workItem from="1733815023315" duration="9402000" />
       <workItem from="1733905017517" duration="5454000" />
-      <workItem from="1750144826384" duration="536000" />
+      <workItem from="1750144826384" duration="1290000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -232,7 +247,15 @@
       <option name="project" value="LOCAL" />
       <updated>1733910503306</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Correction bug création dossier crash">
+      <option name="closed" value="true" />
+      <created>1750145508379</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1750145508379</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -252,14 +275,15 @@
     <MESSAGE value="Simplification du code / suppression code inutilisé depuis changements" />
     <MESSAGE value="Simplification du code / suppression visionneuse photos" />
     <MESSAGE value="V1" />
-    <option name="LAST_COMMIT_MESSAGE" value="V1" />
+    <MESSAGE value="Correction bug création dossier crash" />
+    <option name="LAST_COMMIT_MESSAGE" value="Correction bug création dossier crash" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750145167428" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750146064254" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1733731177680" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1750145386722" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/ObjecTif$objet.coverage" NAME="objet Coverage Results" MODIFIED="1733391343728" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/evidence" />
     <SUITE FILE_PATH="coverage/ObjecTif$setup.coverage" NAME="setup Coverage Results" MODIFIED="1733222450935" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/ObjecTif$log_viewer.coverage" NAME="log_viewer Coverage Results" MODIFIED="1733303901896" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/widgets" />

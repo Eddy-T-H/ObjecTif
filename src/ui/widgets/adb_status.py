@@ -75,8 +75,7 @@ class ADBStatusWidget(QWidget):
 
         # Informations détaillées sur l'appareil
         self.device_info = QLabel()
-        status_layout.addWidget(self.device_info,
-                                1)  # stretch=1 pour utiliser l'espace disponible
+        status_layout.addWidget(self.device_info, 1)
         main_layout.addLayout(status_layout)
 
         # === DEUXIÈME LIGNE : Sélection appareil et rafraîchissement ===
@@ -105,29 +104,79 @@ class ADBStatusWidget(QWidget):
         # Bouton de connexion centré et plus visible
         self.connect_btn = QPushButton("Connecter")
         self.connect_btn.setFixedHeight(24)
-        self.connect_btn.setMinimumWidth(
-            120)  # Largeur minimale pour une meilleure visibilité
+        self.connect_btn.setMinimumWidth(120)
         self.connect_btn.clicked.connect(self._toggle_connection)
 
-        # Utilisation de spacers pour centrer le bouton
+        # Bouton pour réessayer ADB si non disponible
+        self.retry_adb_btn = QPushButton("Réessayer ADB")
+        self.retry_adb_btn.setFixedHeight(24)
+        self.retry_adb_btn.clicked.connect(self._retry_adb)
+        self.retry_adb_btn.setVisible(False)  # Caché par défaut
+
         connect_layout.addStretch()
         connect_layout.addWidget(self.connect_btn)
+        connect_layout.addWidget(self.retry_adb_btn)
         connect_layout.addStretch()
 
         main_layout.addLayout(connect_layout)
 
-        # État initial
-        self._update_ui(False)
+        # État initial - vérifie la disponibilité d'ADB
+        self._check_adb_availability()
         self._refresh_devices()
+
+    def _check_adb_availability(self):
+        """Vérifie si ADB est disponible et met à jour l'interface."""
+        if not self.adb_manager.is_adb_available():
+            self.status_label.setText("ADB INDISPONIBLE")
+            self.status_label.setStyleSheet(
+                "QLabel { background-color: #ff5722; color: white; "
+                "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
+            )
+            self.device_info.setText("ADB non trouvé sur le système")
+            self.connect_btn.setEnabled(False)
+            self.refresh_btn.setEnabled(False)
+            self.retry_adb_btn.setVisible(True)
+        else:
+            self.retry_adb_btn.setVisible(False)
+            self._update_ui(False)
+
+    def _retry_adb(self):
+        """Tente de réinitialiser ADB."""
+        self.retry_adb_btn.setEnabled(False)
+        self.retry_adb_btn.setText("Tentative...")
+
+        if self.adb_manager.retry_adb_initialization():
+            # ADB maintenant disponible
+            self.retry_adb_btn.setVisible(False)
+            self.connect_btn.setEnabled(True)
+            self.refresh_btn.setEnabled(True)
+            self._update_ui(False)
+            self._refresh_devices()
+            QMessageBox.information(self, "Succès", "ADB initialisé avec succès !")
+        else:
+            # Toujours pas disponible
+            self.retry_adb_btn.setEnabled(True)
+            self.retry_adb_btn.setText("Réessayer ADB")
+            QMessageBox.warning(self, "Erreur",
+                                "ADB toujours indisponible.\n"
+                                "Vérifiez l'installation d'Android SDK Platform Tools.")
 
     def _refresh_devices(self):
         """Rafraîchit la liste des appareils disponibles."""
+        if not self.adb_manager.is_adb_available():
+            self.devices_combo.clear()
+            self.devices_combo.addItem("ADB indisponible")
+            self.devices_combo.setEnabled(False)
+            self.connect_btn.setEnabled(False)
+            return
+
         try:
             result = subprocess.run(
                 f'"{self.adb_manager.adb_command}" devices',
                 shell=True,
                 capture_output=True,
                 text=True,
+                timeout=5  # Timeout de 5 secondes
             )
 
             self.devices_combo.clear()
@@ -146,13 +195,18 @@ class ADBStatusWidget(QWidget):
                 self.devices_combo.setEnabled(False)
                 self.connect_btn.setEnabled(False)
 
+        except subprocess.TimeoutExpired:
+            logger.error("Timeout lors du rafraîchissement des appareils")
+            self.devices_combo.clear()
+            self.devices_combo.addItem("Timeout - Réessayez")
+            self.devices_combo.setEnabled(False)
+            self.connect_btn.setEnabled(False)
         except Exception as e:
             logger.error(f"Erreur lors du rafraîchissement des appareils: {e}")
             self.devices_combo.clear()
             self.devices_combo.addItem("Erreur de détection")
             self.devices_combo.setEnabled(False)
             self.connect_btn.setEnabled(False)
-
     def _toggle_connection(self):
         """Gère la connexion/déconnexion avec démarrage/arrêt automatique du streaming."""
         try:
