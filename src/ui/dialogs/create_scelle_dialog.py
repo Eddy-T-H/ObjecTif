@@ -1,17 +1,27 @@
 # src/ui/dialogs/create_scelle_dialog.py
-from PyQt6.QtWidgets import QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QLabel
+
+
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFormLayout,
+    QLineEdit,
+    QDialogButtonBox,
+    QLabel,
+    QPushButton,
+)
+from src.utils.validation import FilenameValidator
+
 
 class CreateScelleDialog(QDialog):
-    """Dialogue pour la création d'un nouveau scellé."""
-
-    FORBIDDEN_CHARS = '<>:"/\\|?*'
+    """Dialogue pour la création d'un nouveau scellé avec validation robuste."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Nouveau Scellé")
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(400)
+        self._setup_ui()
 
-        # Configuration du layout
+    def _setup_ui(self):
         layout = QFormLayout(self)
 
         # Champ de saisie avec validation
@@ -19,10 +29,17 @@ class CreateScelleDialog(QDialog):
         self.numero_edit.textChanged.connect(self._validate_input)
         layout.addRow("Numéro du scellé:", self.numero_edit)
 
-        # Ajout du texte d'aide
-        help_text = QLabel(f"Caractères interdits : {self.FORBIDDEN_CHARS}")
-        help_text.setStyleSheet("color: gray; font-size: 10pt;")
-        layout.addRow(help_text)
+        # Label pour les messages d'aide/erreur
+        self.help_label = QLabel()
+        self.help_label.setStyleSheet("color: gray; font-size: 10pt;")
+        self.help_label.setWordWrap(True)
+        layout.addRow(self.help_label)
+
+        # Bouton de correction automatique
+        self.fix_btn = QPushButton("Corriger automatiquement")
+        self.fix_btn.clicked.connect(self._auto_fix)
+        self.fix_btn.setVisible(False)
+        layout.addRow(self.fix_btn)
 
         # Boutons OK/Cancel
         self.button_box = QDialogButtonBox(
@@ -30,27 +47,58 @@ class CreateScelleDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-
-        # Le bouton OK est désactivé par défaut
         self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
 
         layout.addRow(self.button_box)
 
-    def _validate_input(self, text: str):
-        """Vérifie que le texte ne contient pas de caractères interdits."""
-        text = text.strip()
-        has_forbidden = any(char in text for char in self.FORBIDDEN_CHARS)
+        # Message d'aide initial
+        self._show_help_message()
 
-        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(
-            bool(text) and not has_forbidden
+    def _validate_input(self, text: str):
+        """Valide le texte saisi avec validation robuste."""
+        is_valid, error_msg = FilenameValidator.validate(text)
+
+        if is_valid:
+            self._show_valid_state()
+        else:
+            self._show_error_state(error_msg)
+
+        # Active/désactive le bouton OK
+        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(is_valid)
+
+    def _show_valid_state(self):
+        """Affiche l'état valide."""
+        self.numero_edit.setStyleSheet("")
+        self.help_label.setStyleSheet("color: green; font-size: 10pt;")
+        self.help_label.setText("✓ Nom valide")
+        self.fix_btn.setVisible(False)
+
+    def _show_error_state(self, error_msg: str):
+        """Affiche l'état d'erreur avec possibilité de correction."""
+        self.numero_edit.setStyleSheet("background-color: #ffe6e6;")
+        self.help_label.setStyleSheet("color: red; font-size: 10pt;")
+        self.help_label.setText(f"❌ {error_msg}")
+
+        # Affiche le bouton de correction si on peut proposer une solution
+        current_text = self.numero_edit.text()
+        if current_text and FilenameValidator.suggest_fix(current_text) != current_text:
+            self.fix_btn.setVisible(True)
+        else:
+            self.fix_btn.setVisible(False)
+
+    def _show_help_message(self):
+        """Affiche le message d'aide initial."""
+        self.help_label.setStyleSheet("color: gray; font-size: 10pt;")
+        self.help_label.setText(
+            "Évitez les caractères spéciaux, noms réservés Windows, "
+            "et les espaces en début/fin."
         )
 
-        if has_forbidden:
-            self.numero_edit.setStyleSheet("background-color: #ffe6e6;")
-            self.setToolTip(f"Caractères interdits: {self.FORBIDDEN_CHARS}")
-        else:
-            self.numero_edit.setStyleSheet("")
-            self.setToolTip("")
+    def _auto_fix(self):
+        """Applique la correction automatique."""
+        current_text = self.numero_edit.text()
+        fixed_text = FilenameValidator.suggest_fix(current_text)
+        self.numero_edit.setText(fixed_text)
 
     def get_numero(self) -> str:
         """Retourne le numéro du scellé."""

@@ -1,10 +1,10 @@
 # src/ui/dialogs/create_affaire_dialog.py
 from PyQt6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
-    QLabel, QMessageBox, QVBoxLayout
+    QLabel, QMessageBox, QVBoxLayout, QPushButton
 )
 from typing import Optional, Tuple
-
+from src.utils.validation import FilenameValidator
 
 class CreateAffaireDialog(QDialog):
     """Dialogue pour la création d'une nouvelle affaire."""
@@ -32,10 +32,17 @@ class CreateAffaireDialog(QDialog):
 
         layout.addLayout(form_layout)
 
-        # Texte d'aide
-        help_text = QLabel(f"Caractères interdits : {self.FORBIDDEN_CHARS}")
-        help_text.setStyleSheet("color: gray; font-size: 10pt;")
-        layout.addWidget(help_text)
+        # Label pour les messages d'aide/erreur
+        self.help_label = QLabel()
+        self.help_label.setStyleSheet("color: gray; font-size: 10pt;")
+        self.help_label.setWordWrap(True)
+        layout.addWidget(self.help_label)
+
+        # Bouton de correction automatique
+        self.fix_btn = QPushButton("Corriger automatiquement")
+        self.fix_btn.clicked.connect(self._auto_fix)
+        self.fix_btn.setVisible(False)
+        layout.addWidget(self.fix_btn)
 
         # Boutons OK/Cancel
         self.button_box = QDialogButtonBox(
@@ -50,26 +57,58 @@ class CreateAffaireDialog(QDialog):
 
         layout.addWidget(self.button_box)
 
+        # Message d'aide initial
+        self._show_help_message()
+
     def _validate_input(self, _):
-        """Valide les champs en temps réel."""
-        numero = self.numero_edit.text().strip()
+        """Valide les champs en temps réel avec validation robuste."""
+        text = self.numero_edit.text()
+        is_valid, error_msg = FilenameValidator.validate(text)
 
-        # Vérifie les caractères interdits
-        has_forbidden_numero = any(char in numero for char in self.FORBIDDEN_CHARS)
-
-        # Met à jour les styles visuels
-        self.numero_edit.setStyleSheet(
-            "background-color: #ffe6e6;" if has_forbidden_numero else ""
-        )
+        if is_valid:
+            self._show_valid_state()
+        else:
+            self._show_error_state(error_msg)
 
         # Active/désactive le bouton OK
-        is_valid = bool(numero) and not has_forbidden_numero
         self.button_box.button(
             QDialogButtonBox.StandardButton.Ok
         ).setEnabled(is_valid)
 
+    def _show_valid_state(self):
+        """Affiche l'état valide."""
+        self.numero_edit.setStyleSheet("")
+        self.help_label.setStyleSheet("color: green; font-size: 10pt;")
+        self.help_label.setText("✓ Nom valide")
+        self.fix_btn.setVisible(False)
+
+    def _show_error_state(self, error_msg: str):
+        """Affiche l'état d'erreur avec possibilité de correction."""
+        self.numero_edit.setStyleSheet("background-color: #ffe6e6;")
+        self.help_label.setStyleSheet("color: red; font-size: 10pt;")
+        self.help_label.setText(f"❌ {error_msg}")
+
+        # Affiche le bouton de correction si on peut proposer une solution
+        current_text = self.numero_edit.text()
+        if current_text and FilenameValidator.suggest_fix(current_text) != current_text:
+            self.fix_btn.setVisible(True)
+        else:
+            self.fix_btn.setVisible(False)
+
+    def _show_help_message(self):
+        """Affiche le message d'aide initial."""
+        self.help_label.setStyleSheet("color: gray; font-size: 10pt;")
+        self.help_label.setText(
+            "Évitez les caractères spéciaux, noms réservés Windows, "
+            "et les espaces en début/fin."
+        )
+
+    def _auto_fix(self):
+        """Applique la correction automatique."""
+        current_text = self.numero_edit.text()
+        fixed_text = FilenameValidator.suggest_fix(current_text)
+        self.numero_edit.setText(fixed_text)
+
     def get_data(self) -> Tuple[str]:
         """Retourne le numéro de l'affaire."""
-        return (
-            self.numero_edit.text().strip(),
-        )
+        return (self.numero_edit.text().strip(),)

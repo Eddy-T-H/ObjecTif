@@ -197,7 +197,7 @@ class StreamWindow(QObject):
         except Exception as e:
             logger.error(f"Erreur lors du traitement d'erreur: {e}")
 
-     def _get_scrcpy_path(self):
+    def _get_scrcpy_path(self):
         """
         Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
         """
