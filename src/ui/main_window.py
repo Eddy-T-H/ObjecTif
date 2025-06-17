@@ -723,7 +723,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Erreur", str(e))
 
     def _update_scelle_photos(self):
-        """Met à jour la liste des photos du scellé en excluant les photos d'objets."""
+        """Met à jour la liste des photos du scellé en excluant les photos d'objets, triée intelligemment."""
         photos = []
         if self.current_scelle and self.current_scelle.exists():
             for photo in self.current_scelle.glob("*.jpg"):
@@ -735,10 +735,33 @@ class MainWindow(QMainWindow):
                     if not (len(type_id) == 1 and type_id.isalpha()):
                         photos.append(photo.name)
 
+        # Tri intelligent des photos par type puis par numéro
+        def sort_key(photo_name):
+            try:
+                parts = photo_name.replace('.jpg', '').split('_')
+                if len(parts) >= 3:
+                    # Ordre de priorité des types
+                    type_order = {
+                        'Ferme': 1,
+                        'Contenu': 2,
+                        'Reconditionne': 3,
+                        'Reconditionnement': 3  # Variante
+                    }
+                    photo_type = parts[-2]
+                    sequence = int(parts[-1])
+
+                    # Retourne (ordre_type, numéro_sequence)
+                    return (type_order.get(photo_type, 99), sequence)
+            except:
+                pass
+            # Fallback : tri alphabétique simple
+            return (99, photo_name)
+
+        photos.sort(key=sort_key)
         self.scelle_photos.update_photos(photos)
 
     def _load_existing_objects(self):
-        """Charge la liste des objets existants."""
+        """Charge la liste des objets existants, triée par ordre alphabétique."""
         logger.debug("Chargement des objets")
         self.objects_list.clear()
 
@@ -746,11 +769,21 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            for object_id in self.objet_manager.get_existing_objects():
-                item = QTreeWidgetItem([f"{self.current_scelle.name}_{object_id}"])
+            # Récupère les objets et les trie
+            objects = self.objet_manager.get_existing_objects()
+            # Les objets sont déjà triés dans ObjetEssai.get_existing_objects(),
+            # mais on s'assure du tri ici aussi
+            objects.sort()
+
+            for object_id in objects:
+                # Utilise le nom complet pour l'affichage
+                display_name = f"{self.current_scelle.name}_{object_id}"
+                item = QTreeWidgetItem([display_name])
                 item.setData(0, Qt.ItemDataRole.UserRole, object_id)
                 self.objects_list.addTopLevelItem(item)
                 logger.debug(f"Objet ajouté: {object_id}")
+
+            logger.info(f"{len(objects)} objets chargés et triés alphabétiquement")
 
         except Exception as e:
             logger.error(f"Erreur lors du chargement des objets: {e}")
@@ -806,7 +839,7 @@ class MainWindow(QMainWindow):
         self.btn_photo_objet.setEnabled(False)
 
     def _on_object_selected(self, item):
-        """Gère la sélection d'un objet avec mise à jour des infos."""
+        """Gère la sélection d'un objet dans la liste avec tri des photos."""
         logger.debug("Sélection d'un objet")
 
         object_id = item.data(0, Qt.ItemDataRole.UserRole)
@@ -815,10 +848,20 @@ class MainWindow(QMainWindow):
             self._update_photo_buttons()
             logger.debug(f"Objet sélectionné: {object_id}")
 
-            # Met à jour la liste des photos de l'objet
+            # Met à jour la liste des photos de l'objet, triée par numéro de séquence
             photos = []
             for photo in self.current_scelle.glob(f"*_{object_id}_*.jpg"):
                 photos.append(photo.name)
+
+            # Tri par numéro de séquence
+            def sort_object_photos(photo_name):
+                try:
+                    parts = photo_name.replace('.jpg', '').split('_')
+                    return int(parts[-1])  # Numéro de séquence
+                except:
+                    return 999
+
+            photos.sort(key=sort_object_photos)
             self.object_photos.update_photos(photos)
 
             # Met à jour les informations contextuelles
@@ -879,7 +922,7 @@ class MainWindow(QMainWindow):
 
     def _load_scelles(self, case_path: Path):
         """
-        Charge la liste des scellés pour une affaire donnée.
+        Charge la liste des scellés pour une affaire donnée, triée par ordre alphabétique.
         Affiche uniquement les scellés sans leurs objets d'essai.
 
         Args:
@@ -895,15 +938,24 @@ class MainWindow(QMainWindow):
             logger.error(f"Le dossier {case_path} n'existe pas")
             return
 
-        # Parcourt les dossiers de scellés
+        # Collecte tous les dossiers de scellés
+        scelle_folders = []
         for scelle_path in case_path.iterdir():
             if scelle_path.is_dir():
+                scelle_folders.append(scelle_path)
                 logger.debug(f"Dossier trouvé: {scelle_path.name}")
-                # Crée uniquement l'item du scellé
-                scelle_item = QStandardItem(scelle_path.name)
-                scelle_item.setData(str(scelle_path))
-                self.scelles_model.appendRow(scelle_item)
-                logger.debug(f"Scellé ajouté au modèle: {scelle_path.name}")
+
+        # Trie par ordre alphabétique (insensible à la casse)
+        scelle_folders.sort(key=lambda x: x.name.lower())
+
+        # Ajoute les scellés triés au modèle
+        for scelle_path in scelle_folders:
+            scelle_item = QStandardItem(scelle_path.name)
+            scelle_item.setData(str(scelle_path))
+            self.scelles_model.appendRow(scelle_item)
+            logger.debug(f"Scellé ajouté au modèle: {scelle_path.name}")
+
+        logger.info(f"{len(scelle_folders)} scellés chargés et triés alphabétiquement")
 
 
     def get_next_photo_number(self, scelle_path: Path, prefix: str) -> int:

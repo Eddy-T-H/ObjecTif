@@ -93,7 +93,7 @@ class ObjetEssai(EvidenceBase):
     def get_existing_objects(self) -> List[str]:
         """
         Découvre les objets existants en analysant les identifiants utilisés.
-        Retourne uniquement les lettres réellement utilisées.
+        Retourne uniquement les lettres réellement utilisées, triées alphabétiquement.
 
         Returns:
             List[str]: Liste triée des lettres d'objets
@@ -113,7 +113,7 @@ class ObjetEssai(EvidenceBase):
                     # L'identifiant de l'objet est l'avant-dernier élément
                     object_letter = parts[-2]
                     if len(object_letter) == 1 and object_letter.isalpha():
-                        objects.add(object_letter)
+                        objects.add(object_letter.upper())  # Force en majuscules
                         logger.debug(f"Objet trouvé dans les photos: {object_letter}")
             except Exception as e:
                 logger.warning(f"Erreur lors de l'analyse de {photo_path}: {e}")
