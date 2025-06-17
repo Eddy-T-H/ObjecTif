@@ -128,29 +128,29 @@ class ADBStatusWidget(QWidget):
         )
         devices_layout.addWidget(self.devices_combo)
 
-        # Bouton de rafraîchissement avec style unifié
-        self.refresh_btn = ComponentFactory.create_secondary_button("🔄 Rafraîchir")
-        self.refresh_btn.setFixedHeight(32)
-        self.refresh_btn.clicked.connect(self._refresh_devices)
-        devices_layout.addWidget(self.refresh_btn)
-
         main_layout.addLayout(devices_layout)
 
         # === TROISIÈME LIGNE : Boutons de connexion ===
         connect_layout = QHBoxLayout()
         connect_layout.setSpacing(DesignTokens.Spacing.SM)
 
-        # Bouton de connexion principal
+        # Bouton utilitaire de rafraîchissement → Compact
+        self.refresh_btn = ComponentFactory.create_compact_button("🔄")
+        self.refresh_btn.setToolTip("Rafraîchir la liste des appareils")
+        self.refresh_btn.setFixedHeight(DesignTokens.ButtonSizes.COMPACT)
+        self.refresh_btn.clicked.connect(self._refresh_devices)
+
+        # Bouton principal de connexion → Primary
         self.connect_btn = ComponentFactory.create_primary_button("Se connecter")
-        self.connect_btn.setFixedHeight(36)
-        self.connect_btn.setMinimumWidth(120)
+        self.connect_btn.setFixedHeight(
+            DesignTokens.ButtonSizes.NORMAL + 4)  # Légèrement plus grand
+        self.connect_btn.setMinimumWidth(DesignTokens.ButtonSizes.MIN_WIDTH_LARGE)
         self.connect_btn.clicked.connect(self._toggle_connection)
 
-        # Bouton pour réessayer ADB
-        self.retry_adb_btn = ComponentFactory.create_action_button(
-            "⚠️ Réessayer ADB", "warning"
-        )
-        self.retry_adb_btn.setFixedHeight(36)
+        # Bouton d'erreur ADB → Navigation (visible mais pas critique)
+        self.retry_adb_btn = ComponentFactory.create_navigation_button(
+            "⚠️ Réessayer ADB")
+        self.retry_adb_btn.setFixedHeight(DesignTokens.ButtonSizes.NORMAL)
         self.retry_adb_btn.clicked.connect(self._retry_adb)
         self.retry_adb_btn.setVisible(False)
 

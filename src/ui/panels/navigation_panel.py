@@ -120,8 +120,9 @@ class NavigationPanel(QWidget):
         """
         )
 
-        # Bouton de changement
-        change_workspace_btn = ComponentFactory.create_secondary_button("Changer")
+        # Bouton compact pour changer le workspace
+        change_workspace_btn = ComponentFactory.create_compact_button("...")
+        change_workspace_btn.setToolTip("Changer le dossier de travail")
         change_workspace_btn.clicked.connect(self._select_workspace)
 
         workspace_layout.addWidget(workspace_label_title)
@@ -131,10 +132,9 @@ class NavigationPanel(QWidget):
         layout.addWidget(workspace_widget)
 
     def _setup_cases_section(self):
-        """Configure la section des affaires."""
-        group = ComponentFactory.create_group_box(
-            "📁 Dossiers", DesignTokens.Colors.PRIMARY
-        )
+        """Configure la section des affaires avec boutons navigation."""
+        group = ComponentFactory.create_group_box("📁 Dossiers",
+                                                  DesignTokens.Colors.PRIMARY)
         layout = QVBoxLayout(group)
         layout.setSpacing(DesignTokens.Spacing.XS)
         layout.setContentsMargins(
@@ -148,11 +148,15 @@ class NavigationPanel(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(DesignTokens.Spacing.XS)
 
-        add_btn = ComponentFactory.create_primary_button("Nouveau")
+        # Bouton principal pour créer → Navigation
+        add_btn = ComponentFactory.create_navigation_button("Nouveau")
         add_btn.clicked.connect(self._create_new_case)
         btn_layout.addWidget(add_btn)
 
-        self.explorer_btn = ComponentFactory.create_secondary_button("Explorateur")
+        # Bouton utilitaire → Compact
+        self.explorer_btn = ComponentFactory.create_navigation_button("Ouvrir dans l'explorateur")
+        self.explorer_btn.setToolTip(
+            "Ouvrir dans l'explorateur")  # Tooltip car plus petit
         self.explorer_btn.setEnabled(False)
         self.explorer_btn.clicked.connect(self._open_explorer)
         btn_layout.addWidget(self.explorer_btn)
@@ -176,9 +180,8 @@ class NavigationPanel(QWidget):
 
     def _setup_scelles_section(self):
         """Configure la section des scellés."""
-        group = ComponentFactory.create_group_box(
-            "🔒 Scellés", DesignTokens.Colors.SUCCESS
-        )
+        group = ComponentFactory.create_group_box("🔒 Scellés", DesignTokens.Colors.SUCCESS)
+
         layout = QVBoxLayout(group)
         layout.setContentsMargins(
             DesignTokens.Spacing.SM,
@@ -188,8 +191,8 @@ class NavigationPanel(QWidget):
         )
         layout.setSpacing(DesignTokens.Spacing.XS)
 
-        # Bouton d'ajout
-        add_scelle_btn = ComponentFactory.create_primary_button("Ajouter un scellé")
+        # Bouton de taille navigation pour créer des scellés
+        add_scelle_btn = ComponentFactory.create_navigation_button("Ajouter un scellé")
         add_scelle_btn.clicked.connect(self._create_new_scelle)
         layout.addWidget(add_scelle_btn)
 
@@ -217,7 +220,7 @@ class NavigationPanel(QWidget):
 
     def _setup_objects_section(self):
         """Configure la section des objets."""
-        group = ComponentFactory.create_group_box("🎯 Objets d'essai", "#9C27B0")
+        group = ComponentFactory.create_group_box("📱 Objets d'essai", "#9C27B0")
         layout = QVBoxLayout(group)
         layout.setContentsMargins(
             DesignTokens.Spacing.SM,
@@ -227,8 +230,9 @@ class NavigationPanel(QWidget):
         )
         layout.setSpacing(DesignTokens.Spacing.XS)
 
-        # Bouton d'ajout
-        self.add_object_btn = ComponentFactory.create_primary_button("Ajouter un objet")
+        # Bouton de taille navigation pour créer des objets
+        self.add_object_btn = ComponentFactory.create_navigation_button(
+            "Ajouter un objet")
         self.add_object_btn.clicked.connect(self._create_new_object)
         self.add_object_btn.setEnabled(False)
         layout.addWidget(self.add_object_btn)

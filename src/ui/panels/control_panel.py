@@ -71,9 +71,7 @@ class ControlPanel(QWidget):
 
     def _setup_photo_section(self, layout):
         """Configure la section des actions photo."""
-        photo_group = ComponentFactory.create_group_box(
-            "📸 Actions Photos", DesignTokens.Colors.INFO
-        )
+        photo_group = ComponentFactory.create_group_box("📸 Actions Photos", DesignTokens.Colors.INFO)
         photo_layout = QVBoxLayout(photo_group)
         photo_layout.setSpacing(DesignTokens.Spacing.SM)
         photo_layout.setContentsMargins(
@@ -83,10 +81,9 @@ class ControlPanel(QWidget):
             DesignTokens.Spacing.MD,
         )
 
-        # === BOUTON APPAREIL PHOTO ===
-        self.btn_open_camera = ComponentFactory.create_action_button(
-            "📱 Ouvrir appareil photo", "camera"
-        )
+        # === BOUTON APPAREIL PHOTO - Style spécial caméra ===
+        self.btn_open_camera = ComponentFactory.create_camera_button(
+            "📱 Ouvrir appareil photo")
         self.btn_open_camera.setEnabled(False)
         self.btn_open_camera.clicked.connect(self._open_camera)
         photo_layout.addWidget(self.btn_open_camera)
@@ -95,30 +92,24 @@ class ControlPanel(QWidget):
         separator = QLabel()
         separator.setFixedHeight(1)
         separator.setStyleSheet(
-            f"background-color: {DesignTokens.Colors.BORDER}; "
-            f"margin: {DesignTokens.Spacing.SM}px 0;"
-        )
+            f"background-color: {DesignTokens.Colors.BORDER}; margin: {DesignTokens.Spacing.SM}px 0;")
         photo_layout.addWidget(separator)
 
-        # === BOUTONS PHOTO PRINCIPAUX (GRID 2x2) ===
+        # === BOUTONS PHOTO PRINCIPAUX - Taille ACTION (40px) ===
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setSpacing(DesignTokens.Spacing.SM)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Création des boutons photo
-        self.btn_photo_ferme = ComponentFactory.create_action_button(
-            "🔒 Scellé\nFermé", "photo_scelle"
-        )
+        # Boutons d'action - GROS et VISIBLES
+        self.btn_photo_ferme = ComponentFactory.create_action_button("🔒 Scellé\nFermé",
+                                                                     "photo_scelle")
         self.btn_photo_content = ComponentFactory.create_action_button(
-            "🔍 Contenu\nScellé", "photo_contenu"
-        )
-        self.btn_photo_objet = ComponentFactory.create_action_button(
-            "📱 Objet\nd'Essai", "photo_objet"
-        )
+            "🔍 Contenu\nScellé", "photo_contenu")
+        self.btn_photo_objet = ComponentFactory.create_action_button("📱 Objet\nd'Essai",
+                                                                     "photo_objet")
         self.btn_photo_recond = ComponentFactory.create_action_button(
-            "📦 Recond.\nFinal", "photo_recond"
-        )
+            "📦 Reconditionnement", "photo_recond")
 
         # Organisation en grille 2x2
         grid_layout.addWidget(self.btn_photo_ferme, 0, 0)
