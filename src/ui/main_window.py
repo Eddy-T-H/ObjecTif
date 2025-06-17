@@ -446,7 +446,7 @@ class MainWindow(QMainWindow):
 
         dialog = CreateAffaireDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            numero = dialog.get_numero()
+            numero = dialog.get_data()[0]
             if numero:
                 try:
                     # Crée le dossier de l'affaire dans le workspace
