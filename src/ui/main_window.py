@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTreeView, QLabel, QPushButton, QFileDialog,
     QStatusBar, QMessageBox, QSplitter, QGroupBox, QTreeWidget, QTreeWidgetItem,
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QTabWidget, QPlainTextEdit,
-    QFrame, QSizePolicy, QDockWidget
+    QFrame, QSizePolicy, QDockWidget, QGridLayout
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem, QColor, \
@@ -124,34 +124,110 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Erreur de streaming : {error_msg}")
 
     def _setup_right_panel(self) -> QWidget:
-        """Configure le panneau droit avec les contrôles ADB et les boutons photo."""
+        """Configure le panneau droit avec interface moderne corrigée."""
         right_panel = QWidget()
-        right_panel.setMinimumWidth(200)
+        right_panel.setMinimumWidth(280)
         layout = QVBoxLayout(right_panel)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(12)
 
-        # Widget de status ADB en haut
+        # === STATUS ADB MODERNE ===
         self.adb_status = ADBStatusWidget(self.adb_manager)
         layout.addWidget(self.adb_status)
 
-        # Groupe des boutons photo
-        photo_group = QGroupBox("Actions Photos")
+        # === ACTIONS PHOTO MODERNES ===
+        photo_group = QGroupBox("📸 Actions Photos")
+        photo_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                border: 2px solid #4CAF50;
+                border-radius: 12px;
+                margin-top: 15px;
+                padding-top: 10px;
+                background-color: #f8fff8;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px 0 10px;
+                color: #2e7d32;
+            }
+        """)
         photo_layout = QVBoxLayout(photo_group)
-        photo_layout.setSpacing(6)
+        photo_layout.setSpacing(10)
+        photo_layout.setContentsMargins(15, 20, 15, 15)
 
-        # Bouton pour ouvrir l'appareil photo
-        self.btn_open_camera = QPushButton("Ouvrir appareil photo")
+        # === BOUTON APPAREIL PHOTO ===
+        self.btn_open_camera = QPushButton("📱 Ouvrir appareil photo")
         self.btn_open_camera.setEnabled(False)
         self.btn_open_camera.clicked.connect(self._open_camera)
+        self.btn_open_camera.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 16px;
+                font-size: 13px;
+                font-weight: bold;
+                min-height: 20px;
+            }
+            QPushButton:hover {
+                background-color: #0D47A1;
+                border: 2px solid #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
         photo_layout.addWidget(self.btn_open_camera)
 
-        # Création des boutons photo
-        self.btn_photo_ferme = QPushButton("Photo Scellé Fermé")
-        self.btn_photo_content = QPushButton("Photo Contenu")
-        self.btn_photo_objet = QPushButton("Photo Objet d'Essai")
-        self.btn_photo_recond = QPushButton("Photo Reconditionnement")
+        # === SÉPARATEUR VISUEL ===
+        separator = QLabel()
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #e0e0e0; margin: 5px 0;")
+        photo_layout.addWidget(separator)
 
+        # === BOUTONS PHOTO PRINCIPAUX (GRID 2x2) ===
+        grid_widget = QWidget()
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(8)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Bouton Photo Scellé Fermé (principal)
+        self.btn_photo_ferme = QPushButton("🔒 Scellé\nFermé")
+        self.btn_photo_ferme.setStyleSheet(
+            self._get_main_button_style("#4CAF50", "#2E7D32"))
+
+        # Bouton Photo Contenu (loupe)
+        self.btn_photo_content = QPushButton("🔍 Contenu\nScellé")
+        self.btn_photo_content.setStyleSheet(
+            self._get_main_button_style("#FF9800", "#F57C00"))
+
+        # Bouton Photo Objet (téléphone)
+        self.btn_photo_objet = QPushButton("📱 Objet\nd'Essai")
+        self.btn_photo_objet.setStyleSheet(
+            self._get_main_button_style("#9C27B0", "#7B1FA2"))
+
+        # Bouton Photo Reconditionnement (scotch)
+        self.btn_photo_recond = QPushButton("📦 Recond.\nFinal")
+        self.btn_photo_recond.setStyleSheet(
+            self._get_main_button_style("#607D8B", "#455A64"))
+
+        # Organisation en grille 2x2
+        grid_layout.addWidget(self.btn_photo_ferme, 0, 0)
+        grid_layout.addWidget(self.btn_photo_content, 0, 1)
+        grid_layout.addWidget(self.btn_photo_objet, 1, 0)
+        grid_layout.addWidget(self.btn_photo_recond, 1, 1)
+
+        photo_layout.addWidget(grid_widget)
+
+        # === MISE À JOUR DU DICTIONNAIRE ===
         self.photo_buttons = {
             "ferme": self.btn_photo_ferme,
             "contenu": self.btn_photo_content,
@@ -159,15 +235,79 @@ class MainWindow(QMainWindow):
             "recond": self.btn_photo_recond
         }
 
+        # Connexion des signaux
         for photo_type, btn in self.photo_buttons.items():
             btn.setEnabled(False)
             btn.clicked.connect(lambda checked, t=photo_type: self._take_photo(t))
-            photo_layout.addWidget(btn)
 
         layout.addWidget(photo_group)
-        layout.addStretch()  # Espace flexible en bas
+
+        # === INFORMATIONS CONTEXTUELLES ===
+        info_group = QGroupBox("ℹ️ Informations")
+        info_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #2196F3;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 8px;
+                background-color: #f8fbff;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                color: #1976D2;
+            }
+        """)
+        info_layout = QVBoxLayout(info_group)
+        info_layout.setContentsMargins(10, 15, 10, 10)
+
+        # Labels d'information
+        self.info_scelle = QLabel("📁 Aucun scellé sélectionné")
+        self.info_objet = QLabel("📱 Aucun objet sélectionné")
+
+        self.info_scelle.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
+        self.info_objet.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
+
+        info_layout.addWidget(self.info_scelle)
+        info_layout.addWidget(self.info_objet)
+
+        layout.addWidget(info_group)
+
+        # Espace flexible pour pousser tout vers le haut
+        layout.addStretch()
 
         return right_panel
+
+    def _get_main_button_style(self, color: str, hover_color: str) -> str:
+        """Génère le style CSS pour les boutons photo principaux avec hover visible."""
+        return f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 20px 15px;
+                font-size: 13px;
+                font-weight: bold;
+                min-height: 40px;
+                min-width: 100px;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color};
+                border: 3px solid white;
+                transform: scale(1.05);
+            }}
+            QPushButton:pressed {{
+                background-color: {hover_color};
+                transform: scale(0.98);
+            }}
+            QPushButton:disabled {{
+                background-color: #e0e0e0;
+                color: #9e9e9e;
+            }}
+        """
 
     def _open_camera(self):
         """
@@ -544,7 +684,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(QModelIndex)
     def _on_scelle_selected(self, index):
-        """Gère la sélection d'un scellé."""
+        """Gère la sélection d'un scellé avec mise à jour des infos."""
         logger.debug("Sélection d'un scellé")
 
         self.objects_list.clear()
@@ -574,6 +714,9 @@ class MainWindow(QMainWindow):
 
                 # Met à jour la liste des photos du scellé
                 self._update_scelle_photos()
+
+                # Met à jour les informations contextuelles
+                self._update_context_info()
 
         except Exception as e:
             logger.error(f"Erreur lors de la sélection du scellé: {e}")
@@ -663,7 +806,7 @@ class MainWindow(QMainWindow):
         self.btn_photo_objet.setEnabled(False)
 
     def _on_object_selected(self, item):
-        """Gère la sélection d'un objet dans la liste."""
+        """Gère la sélection d'un objet avec mise à jour des infos."""
         logger.debug("Sélection d'un objet")
 
         object_id = item.data(0, Qt.ItemDataRole.UserRole)
@@ -677,6 +820,9 @@ class MainWindow(QMainWindow):
             for photo in self.current_scelle.glob(f"*_{object_id}_*.jpg"):
                 photos.append(photo.name)
             self.object_photos.update_photos(photos)
+
+            # Met à jour les informations contextuelles
+            self._update_context_info()
 
             self.statusBar().showMessage(f"Objet {object_id} sélectionné")
 
@@ -781,32 +927,31 @@ class MainWindow(QMainWindow):
             self.workspace_label.setText(str(self.config.paths.workspace_path))
 
     def _on_case_selected(self, index: QModelIndex):
-        """
-        Gère la sélection d'une affaire.
-        Réinitialise l'interface pour commencer proprement avec la nouvelle affaire.
-        """
+        """Gère la sélection d'une affaire avec réinitialisation des infos."""
         path = Path(self.cases_model.filePath(index))
         if path.is_dir():
             # Réinitialise l'état
             self.current_case_path = path
-            self.current_scelle = None  # Réinitialise le scellé sélectionné
-            self.current_object = None  # Réinitialise l'objet sélectionné
+            self.current_scelle = None
+            self.current_object = None
 
             # Active le bouton d'explorateur
             self.case_explorer_btn.setEnabled(True)
 
             # Réinitialise les gestionnaires
             self.scelle_manager = Scelle(path)
-            self.objet_manager = None  # Réinitialise le gestionnaire d'objets
+            self.objet_manager = None
 
             # Nettoie l'interface
-            self.objects_list.clear()  # Vide la liste des objets
-
+            self.objects_list.clear()
 
             # Met à jour les autres éléments de l'interface
             self._load_scelles(path)
             self._disable_photo_buttons()
-            self.add_object_btn.setEnabled(False)  # Désactive le bouton d'ajout d'objet
+            self.add_object_btn.setEnabled(False)
+
+            # Réinitialise les informations contextuelles
+            self._update_context_info()
 
             # Mise à jour de la barre de statut
             self.statusBar().showMessage(f"Affaire sélectionnée : {path.name}")
@@ -1010,3 +1155,46 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Erreur lors de l'ouverture de l'explorateur: {e}")
             self.statusBar().showMessage("Erreur lors de l'ouverture de l'explorateur")
+
+    def _update_context_info(self):
+        """Met à jour les informations contextuelles dans le panneau droit."""
+        # Informations sur le scellé
+        if self.current_scelle:
+            scelle_name = self.current_scelle.name
+            # Compte les photos du scellé (hors objets)
+            photo_count = len([p for p in self.current_scelle.glob("*.jpg")
+                               if not self._is_object_photo(p)])
+            self.info_scelle.setText(f"📁 Scellé: {scelle_name} ({photo_count} photos)")
+            self.info_scelle.setStyleSheet(
+                "color: #2e7d32; font-size: 11px; padding: 2px; font-weight: bold;")
+        else:
+            self.info_scelle.setText("📁 Aucun scellé sélectionné")
+            self.info_scelle.setStyleSheet(
+                "color: #666; font-size: 11px; padding: 2px;")
+
+        # Informations sur l'objet avec nom complet
+        if self.current_object and self.current_scelle:
+            object_photo_count = len(
+                list(self.current_scelle.glob(f"*_{self.current_object}_*.jpg")))
+            # Nom complet de l'objet
+            object_full_name = f"{self.current_scelle.name}_{self.current_object}"
+            self.info_objet.setText(
+                f"🎯 Objet: {object_full_name} ({object_photo_count} photos)")
+            self.info_objet.setStyleSheet(
+                "color: #7b1fa2; font-size: 11px; padding: 2px; font-weight: bold;")
+        else:
+            self.info_objet.setText("📱 Aucun objet sélectionné")
+            self.info_objet.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
+
+    def _is_object_photo(self, photo_path) -> bool:
+        """Vérifie si une photo est une photo d'objet (contient une lettre seule avant le numéro)."""
+        try:
+            parts = photo_path.stem.split('_')
+            if len(parts) >= 2:
+                # L'avant-dernier élément est-il une lettre seule ?
+                potential_object_id = parts[-2]
+                return len(
+                    potential_object_id) == 1 and potential_object_id.isalpha()
+            return False
+        except:
+            return False

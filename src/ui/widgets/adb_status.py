@@ -130,15 +130,38 @@ class ADBStatusWidget(QWidget):
     def _check_adb_availability(self):
         """Vérifie si ADB est disponible et met à jour l'interface."""
         if not self.adb_manager.is_adb_available():
-            self.status_label.setText("ADB INDISPONIBLE")
-            self.status_label.setStyleSheet(
-                "QLabel { background-color: #ff5722; color: white; "
-                "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
-            )
-            self.device_info.setText("ADB non trouvé sur le système")
+            self.status_label.setText("⚠️ ADB INDISPONIBLE")
+            self.status_label.setStyleSheet("""
+                QLabel { 
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                               stop:0 #ff5722, stop:1 #e64a19);
+                    color: white; 
+                    padding: 8px 16px; 
+                    border-radius: 8px; 
+                    font-weight: bold;
+                    font-size: 12px;
+                    border: 2px solid #d84315;
+                }
+            """)
+            self.device_info.setText("🚫 ADB non trouvé sur le système")
+            self.device_info.setStyleSheet("color: #d84315; font-size: 11px;")
             self.connect_btn.setEnabled(False)
             self.refresh_btn.setEnabled(False)
             self.retry_adb_btn.setVisible(True)
+            self.retry_adb_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff9800;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+            """)
         else:
             self.retry_adb_btn.setVisible(False)
             self._update_ui(False)
@@ -319,46 +342,94 @@ class ADBStatusWidget(QWidget):
             logger.error(f"Erreur lors de la gestion d'erreur de connexion: {e}")
 
     def _update_ui(self, is_connected: bool):
-        """
-        Met à jour l'interface selon l'état de connexion avec gestion des erreurs.
-        Synchronise l'état du streaming avec la connexion.
-        """
+        """Met à jour l'interface selon l'état de connexion avec bouton corrigé."""
         try:
             if is_connected:
                 # Mise à jour de l'interface pour l'état connecté
-                self.status_label.setText("CONNECTÉ")
-                self.status_label.setStyleSheet(
-                    "QLabel { background-color: #4CAF50; color: white; "
-                    "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
-                )
+                self.status_label.setText("🟢 CONNECTÉ")
+                self.status_label.setStyleSheet("""
+                    QLabel { 
+                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                                   stop:0 #4CAF50, stop:1 #45a049);
+                        color: white; 
+                        padding: 8px 16px; 
+                        border-radius: 8px; 
+                        font-weight: bold;
+                        font-size: 12px;
+                        border: 2px solid #388E3C;
+                    }
+                """)
                 self.connect_btn.setText("Déconnecter")
+                self.connect_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #f44336;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 10px 20px;
+                        font-weight: bold;
+                        font-size: 12px;
+                        min-height: 30px;
+                        min-width: 100px;
+                    }
+                    QPushButton:hover {
+                        background-color: #d32f2f;
+                        border: 2px solid white;
+                    }
+                """)
                 self.devices_combo.setEnabled(False)
 
                 # Affichage des informations de l'appareil
                 try:
                     if device_info := self.adb_manager.get_device_info():
-                        self.device_info.setText(
-                            f"{device_info['manufacturer']} {device_info['model']} "
-                            f"(Android {device_info['android_version']})"
-                        )
+                        info_text = f"📱 {device_info['manufacturer']} {device_info['model']} (Android {device_info['android_version']})"
+                        self.device_info.setText(info_text)
+                        self.device_info.setStyleSheet(
+                            "color: #2e7d32; font-size: 11px; font-weight: bold;")
                 except Exception as e:
                     logger.error(
                         f"Erreur lors de la récupération des infos appareil: {e}")
-                    self.device_info.setText("Erreur infos appareil")
+                    self.device_info.setText("⚠️ Erreur infos appareil")
+                    self.device_info.setStyleSheet("color: #ff9800; font-size: 11px;")
 
-                # Démarrage du streaming avec gestion d'erreur
+                # Démarrage du streaming
                 if self.stream_window:
                     if not self.stream_window.start_stream():
                         logger.error("Échec du démarrage du streaming")
 
             else:
                 # Mise à jour de l'interface pour l'état déconnecté
-                self.status_label.setText("DÉCONNECTÉ")
-                self.status_label.setStyleSheet(
-                    "QLabel { background-color: #f44336; color: white; "
-                    "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
-                )
+                self.status_label.setText("🔴 DÉCONNECTÉ")
+                self.status_label.setStyleSheet("""
+                    QLabel { 
+                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                                   stop:0 #f44336, stop:1 #d32f2f);
+                        color: white; 
+                        padding: 8px 16px; 
+                        border-radius: 8px; 
+                        font-weight: bold;
+                        font-size: 12px;
+                        border: 2px solid #c62828;
+                    }
+                """)
                 self.connect_btn.setText("Connecter")
+                self.connect_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 10px 20px;
+                        font-weight: bold;
+                        font-size: 12px;
+                        min-height: 30px;
+                        min-width: 100px;
+                    }
+                    QPushButton:hover {
+                        background-color: #45a049;
+                        border: 2px solid white;
+                    }
+                """)
                 self.device_info.clear()
                 self.devices_combo.setEnabled(True)
 
@@ -374,7 +445,6 @@ class ADBStatusWidget(QWidget):
 
         except Exception as e:
             logger.error(f"Erreur lors de la mise à jour de l'interface: {e}")
-            # Tentative de récupération en cas d'erreur
             self._handle_ui_error()
 
     def _handle_stream_error(self, error_msg: str):
