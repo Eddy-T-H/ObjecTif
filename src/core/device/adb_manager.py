@@ -365,53 +365,66 @@ class ADBManager:
             logger.exception(e)
             return []
 
-    def take_photo(self, save_path: Path) -> bool:
+    def take_photo(self, save_path: Path, status_callback=None) -> bool:
         """
         Prend une photo et transfère toutes les photos du téléphone.
 
         Args:
             save_path: Chemin de sauvegarde sur le PC (détermine le format de nommage)
+            status_callback: Fonction appelée avec le message d'état
 
         Returns:
             bool: True si au moins une photo a été transférée
         """
         try:
-            # Simule l'appui sur le bouton volume pour prendre la photo
+            # Étape 1 : Prise de photo
+            if status_callback:
+                status_callback("Prise de photo...")
+
             logger.debug("Déclenchement de la capture via bouton volume")
             volume_cmd = f'"{self.adb_command}" -s {self.current_device} shell input keyevent 24'
             subprocess.run(volume_cmd, shell=True, check=True)
 
-            # Attends que la photo soit enregistrée
-            time.sleep(3)
+            # Étape 2 : Attente enregistrement
+            if status_callback:
+                status_callback("Enregistrement en cours...")
 
-            # Récupère toutes les photos et les transfère
-            return self._transfer_all_photos(save_path)
+            time.sleep(3)  # Attends que la photo soit enregistrée
+
+            # Étape 3 : Transfert de toutes les photos
+            return self._transfer_all_photos(save_path, status_callback)
 
         except Exception as e:
             logger.error(f"Erreur lors de la prise de photo: {e}")
+            if status_callback:
+                status_callback(f"Erreur: {str(e)}")
             return False
 
-    def _transfer_all_photos(self, save_path: Path) -> bool:
+    def _transfer_all_photos(self, save_path: Path, status_callback=None) -> bool:
         """
         Transfère toutes les photos du téléphone en les renommant selon le modèle.
 
         Args:
             save_path: Chemin de sauvegarde qui sert de modèle pour le nommage
+            status_callback: Fonction appelée avec le message d'état
         """
         try:
-            # Liste toutes les photos sur le téléphone
+            # Recherche des photos
+            if status_callback:
+                status_callback("Recherche des photos...")
+
             phone_photos = self._list_dcim_photos()
             if not phone_photos:
                 logger.error("Aucune photo trouvée sur le téléphone")
+                if status_callback:
+                    status_callback("Aucune photo trouvée")
                 return False
 
             # Crée le dossier de destination si nécessaire
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Détermine le type de photo à partir du nom cible
-            # Ex: si save_path est "scelle_01_Ferme_1.jpg", on extrait "Ferme"
-            photo_type = save_path.stem.split('_')[
-                -2]  # Attention aux noms d'objets (A, B, C...)
+            photo_type = save_path.stem.split('_')[-2]
 
             # Trouve le dernier numéro utilisé dans le dossier pour ce type
             existing_photos = list(save_path.parent.glob(f"*_{photo_type}_*.jpg"))
@@ -425,9 +438,19 @@ class ADBManager:
 
             # Transfère chaque photo avec un nouveau nom
             success = False
-            for phone_photo in phone_photos:
+            total_photos = len(phone_photos)
+
+            for i, phone_photo in enumerate(phone_photos, 1):
                 last_num += 1
                 new_name = save_path.parent / f"{save_path.stem[:-1]}{last_num}.jpg"
+
+                # Message d'état selon le nombre de photos
+                if total_photos == 1:
+                    if status_callback:
+                        status_callback("Transfert de la photo...")
+                else:
+                    if status_callback:
+                        status_callback(f"Transfert photo {i}/{total_photos}...")
 
                 pull_cmd = f'"{self.adb_command}" -s {self.current_device} pull "{phone_photo}" "{new_name}"'
                 result = subprocess.run(pull_cmd, shell=True, capture_output=True,
@@ -442,13 +465,24 @@ class ADBManager:
 
             # Supprime les photos du téléphone après transfert réussi
             if success:
+                if status_callback:
+                    status_callback("Nettoyage du téléphone...")
+
                 for phone_photo in phone_photos:
                     rm_cmd = f'"{self.adb_command}" -s {self.current_device} shell rm "{phone_photo}"'
                     subprocess.run(rm_cmd, shell=True)
                 logger.info("Photos supprimées du téléphone après transfert")
 
+                if status_callback:
+                    if total_photos == 1:
+                        status_callback("Photo transférée")
+                    else:
+                        status_callback(f"{total_photos} photos transférées")
+
             return success
 
         except Exception as e:
             logger.error(f"Erreur lors du transfert des photos: {e}")
+            if status_callback:
+                status_callback(f"Erreur: {str(e)}")
             return False

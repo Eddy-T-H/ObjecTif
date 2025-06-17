@@ -26,6 +26,7 @@ from .dialogs.create_scelle_dialog import CreateScelleDialog
 from .widgets.adb_status import ADBStatusWidget
 from .widgets.log_viewer import ColoredLogViewer, QtHandler
 from .widgets.photo_list import PhotoListWidget
+from .widgets.operation_popup import OperationPopup
 
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
@@ -838,7 +839,7 @@ class MainWindow(QMainWindow):
 
     def _take_photo(self, photo_type: str):
         """
-        Prend une photo avec l'appareil connecté avec feedback visuel.
+        Prend une photo avec popup d'état simple.
 
         Args:
             photo_type: Type de photo ('ferme', 'contenu', 'objet', 'recond')
@@ -847,9 +848,6 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            # === DÉBUT DE L'OPÉRATION ===
-            self._start_photo_operation(photo_type)
-
             # Détermine le préfixe selon le type
             prefix_map = {
                 'ferme': 'Ferme',
@@ -861,7 +859,7 @@ class MainWindow(QMainWindow):
             # Vérifie que l'objet est sélectionné pour les photos d'objet
             if photo_type == 'objet' and not self.current_object:
                 logger.error("Aucun objet sélectionné")
-                self._end_photo_operation(False, "Aucun objet sélectionné")
+                self.statusBar().showMessage("Aucun objet sélectionné")
                 return
 
             prefix = prefix_map[photo_type]
@@ -883,11 +881,27 @@ class MainWindow(QMainWindow):
             file_name = f"{scelle_name}_{prefix}_{next_num}.jpg"
             save_path = self.current_scelle / file_name
 
-            # Met à jour le message pendant l'opération
-            self.statusBar().showMessage(f"Prise de photo en cours... ({file_name})")
+            # === DÉBUT DE L'OPÉRATION AVEC POPUP ===
+            # Désactive les boutons photo pour éviter les clics multiples
+            for btn in self.photo_buttons.values():
+                btn.setEnabled(False)
+            self.btn_open_camera.setEnabled(False)
 
-            # Prend la photo
-            success = self.adb_manager.take_photo(save_path)
+            # Crée et affiche la popup modale
+            popup = OperationPopup(self)
+            popup.show()
+
+            # Fonction de callback pour les messages d'état
+            def update_status(message):
+                popup.update_message(message)
+                # Force le traitement des événements Qt pour mettre à jour l'interface
+                QApplication.processEvents()
+
+            # Prend la photo avec suivi d'état
+            success = self.adb_manager.take_photo(save_path, update_status)
+
+            # Ferme la popup
+            popup.close_popup()
 
             if success:
                 # Met à jour la liste appropriée selon le type de photo
@@ -900,13 +914,19 @@ class MainWindow(QMainWindow):
                 else:
                     self._update_scelle_photos()
 
-                self._end_photo_operation(True, f"Photo sauvegardée : {file_name}")
+                # Message de succès adapté
+                self.statusBar().showMessage(f"Photo(s) sauvegardée(s) pour {prefix}")
+                # Efface le message après 3 secondes
+                QTimer.singleShot(3000, lambda: self.statusBar().showMessage(""))
             else:
-                self._end_photo_operation(False, "Erreur lors de la prise de photo")
+                self.statusBar().showMessage("Erreur lors de la prise de photo")
 
         except Exception as e:
             logger.error(f"Erreur lors de la prise de photo : {e}")
-            self._end_photo_operation(False, "Erreur lors de la prise de photo")
+            self.statusBar().showMessage("Erreur lors de la prise de photo")
+        finally:
+            # Réactive toujours les boutons à la fin
+            self._update_photo_buttons()
 
     def _start_photo_operation(self, photo_type: str):
         """Démarre l'indication visuelle d'une opération photo."""
