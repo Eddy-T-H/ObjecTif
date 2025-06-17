@@ -7,7 +7,9 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QStatusBar,
-    QComboBox, QVBoxLayout, QMessageBox,
+    QComboBox,
+    QVBoxLayout,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QCursor
@@ -18,16 +20,16 @@ from loguru import logger
 from src.core.device import ADBManager
 from src.ui.widgets.stream_window import StreamWindow
 
+# Import du système de design
+from src.ui.theme.design_system import DesignTokens, StyleSheets, ComponentFactory
+
 
 class ADBStatusWidget(QWidget):
-    """Widget affichant l'état de la connexion ADB."""
+    """Widget affichant l'état de la connexion ADB avec design unifié."""
 
     connection_changed = pyqtSignal(bool)
 
     def __init__(self, adb_manager=None, parent=None):
-        # super().__init__(parent)
-        # self.adb_manager = adb_manager or ADBManager()
-        # self._setup_ui()
         try:
             super().__init__(parent)
             self.adb_manager = adb_manager or ADBManager()
@@ -48,73 +50,109 @@ class ADBStatusWidget(QWidget):
             raise
 
     def _setup_ui(self):
-        """
-        Configure l'interface utilisateur du widget avec trois lignes distinctes :
-        1. Status et informations de l'appareil
-        2. Sélection de l'appareil et rafraîchissement
-        3. Bouton de connexion isolé
-        """
+        """Configure l'interface utilisateur avec design unifié."""
         # Layout principal vertical pour les 3 lignes
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(
+            DesignTokens.Spacing.SM,
+            DesignTokens.Spacing.SM,
+            DesignTokens.Spacing.SM,
+            DesignTokens.Spacing.SM,
+        )
+        main_layout.setSpacing(DesignTokens.Spacing.SM)
 
         # === PREMIÈRE LIGNE : Status et informations ===
         status_layout = QHBoxLayout()
-        status_layout.setSpacing(5)
+        status_layout.setSpacing(DesignTokens.Spacing.SM)
 
-        # Indicateur d'état avec style distinctif
+        # Indicateur d'état avec style unifié
         self.status_label = QLabel()
-        self.status_label.setStyleSheet("""
-            QLabel {
-                padding: 2px 8px;
-                border-radius: 3px;
-                font-weight: bold;
-                min-height: 20px;
-                max-height: 20px;
-            }
-        """)
+        self.status_label.setMinimumHeight(32)
+        self.status_label.setMaximumHeight(32)
         status_layout.addWidget(self.status_label)
 
         # Informations détaillées sur l'appareil
         self.device_info = QLabel()
+        self.device_info.setStyleSheet(
+            f"""
+            QLabel {{
+                color: {DesignTokens.Colors.TEXT_SECONDARY};
+                font-size: {DesignTokens.Typography.CAPTION}px;
+                padding: {DesignTokens.Spacing.XS}px;
+            }}
+        """
+        )
         status_layout.addWidget(self.device_info, 1)
         main_layout.addLayout(status_layout)
 
         # === DEUXIÈME LIGNE : Sélection appareil et rafraîchissement ===
         devices_layout = QHBoxLayout()
-        devices_layout.setSpacing(5)
+        devices_layout.setSpacing(DesignTokens.Spacing.SM)
 
-        # Liste déroulante des appareils
+        # Liste déroulante des appareils avec style unifié
         self.devices_combo = QComboBox()
         self.devices_combo.setMinimumWidth(200)
         self.devices_combo.setEnabled(False)
-        self.devices_combo.setFixedHeight(24)
+        self.devices_combo.setFixedHeight(32)
+        self.devices_combo.setStyleSheet(
+            f"""
+            QComboBox {{
+                background-color: {DesignTokens.Colors.SURFACE};
+                border: 1px solid {DesignTokens.Colors.BORDER};
+                border-radius: {DesignTokens.BorderRadius.MEDIUM}px;
+                padding: {DesignTokens.Spacing.XS}px {DesignTokens.Spacing.SM}px;
+                font-size: {DesignTokens.Typography.BODY}px;
+                color: {DesignTokens.Colors.TEXT_PRIMARY};
+            }}
+            QComboBox:hover {{
+                border-color: {DesignTokens.Colors.BORDER_HOVER};
+            }}
+            QComboBox:focus {{
+                border-color: {DesignTokens.Colors.BORDER_FOCUS};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border: 2px solid {DesignTokens.Colors.TEXT_SECONDARY};
+                border-top: none;
+                border-right: none;
+                width: 6px;
+                height: 6px;
+                transform: rotate(-45deg);
+                margin-right: 8px;
+            }}
+        """
+        )
         devices_layout.addWidget(self.devices_combo)
 
-        # Bouton de rafraîchissement
-        self.refresh_btn = QPushButton("Rafraîchir")
-        self.refresh_btn.setFixedHeight(24)
+        # Bouton de rafraîchissement avec style unifié
+        self.refresh_btn = ComponentFactory.create_secondary_button("🔄 Rafraîchir")
+        self.refresh_btn.setFixedHeight(32)
         self.refresh_btn.clicked.connect(self._refresh_devices)
         devices_layout.addWidget(self.refresh_btn)
 
         main_layout.addLayout(devices_layout)
 
-        # === TROISIÈME LIGNE : Bouton de connexion ===
+        # === TROISIÈME LIGNE : Boutons de connexion ===
         connect_layout = QHBoxLayout()
-        connect_layout.setSpacing(5)
+        connect_layout.setSpacing(DesignTokens.Spacing.SM)
 
-        # Bouton de connexion centré et plus visible
-        self.connect_btn = QPushButton("Connecter")
-        self.connect_btn.setFixedHeight(24)
+        # Bouton de connexion principal
+        self.connect_btn = ComponentFactory.create_primary_button("Se connecter")
+        self.connect_btn.setFixedHeight(36)
         self.connect_btn.setMinimumWidth(120)
         self.connect_btn.clicked.connect(self._toggle_connection)
 
-        # Bouton pour réessayer ADB si non disponible
-        self.retry_adb_btn = QPushButton("Réessayer ADB")
-        self.retry_adb_btn.setFixedHeight(24)
+        # Bouton pour réessayer ADB
+        self.retry_adb_btn = ComponentFactory.create_action_button(
+            "⚠️ Réessayer ADB", "warning"
+        )
+        self.retry_adb_btn.setFixedHeight(36)
         self.retry_adb_btn.clicked.connect(self._retry_adb)
-        self.retry_adb_btn.setVisible(False)  # Caché par défaut
+        self.retry_adb_btn.setVisible(False)
 
         connect_layout.addStretch()
         connect_layout.addWidget(self.connect_btn)
@@ -123,53 +161,41 @@ class ADBStatusWidget(QWidget):
 
         main_layout.addLayout(connect_layout)
 
-        # État initial - vérifie la disponibilité d'ADB
+        # État initial
         self._check_adb_availability()
         self._refresh_devices()
 
     def _check_adb_availability(self):
-        """Vérifie si ADB est disponible et met à jour l'interface."""
+        """Vérifie si ADB est disponible avec indicateurs visuels unifiés."""
         if not self.adb_manager.is_adb_available():
             self.status_label.setText("⚠️ ADB INDISPONIBLE")
-            self.status_label.setStyleSheet("""
-                QLabel { 
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                               stop:0 #ff5722, stop:1 #e64a19);
-                    color: white; 
-                    padding: 8px 16px; 
-                    border-radius: 8px; 
-                    font-weight: bold;
-                    font-size: 12px;
-                    border: 2px solid #d84315;
-                }
-            """)
+            self.status_label.setStyleSheet(
+                StyleSheets.status_indicator("disconnected")
+            )
+
             self.device_info.setText("🚫 ADB non trouvé sur le système")
-            self.device_info.setStyleSheet("color: #d84315; font-size: 11px;")
+            self.device_info.setStyleSheet(
+                f"""
+                QLabel {{
+                    color: {DesignTokens.Colors.ERROR};
+                    font-size: {DesignTokens.Typography.CAPTION}px;
+                    font-weight: {DesignTokens.Typography.MEDIUM};
+                }}
+            """
+            )
+
             self.connect_btn.setEnabled(False)
             self.refresh_btn.setEnabled(False)
             self.retry_adb_btn.setVisible(True)
-            self.retry_adb_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #ff9800;
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    padding: 8px 16px;
-                    font-weight: bold;
-                    font-size: 11px;
-                }
-                QPushButton:hover {
-                    background-color: #f57c00;
-                }
-            """)
         else:
             self.retry_adb_btn.setVisible(False)
             self._update_ui(False)
 
     def _retry_adb(self):
-        """Tente de réinitialiser ADB."""
+        """Tente de réinitialiser ADB avec feedback visuel unifié."""
+        # Désactive le bouton et change son texte
         self.retry_adb_btn.setEnabled(False)
-        self.retry_adb_btn.setText("Tentative...")
+        self.retry_adb_btn.setText("🔄 Tentative...")
 
         if self.adb_manager.retry_adb_initialization():
             # ADB maintenant disponible
@@ -182,13 +208,16 @@ class ADBStatusWidget(QWidget):
         else:
             # Toujours pas disponible
             self.retry_adb_btn.setEnabled(True)
-            self.retry_adb_btn.setText("Réessayer ADB")
-            QMessageBox.warning(self, "Erreur",
-                                "ADB toujours indisponible.\n"
-                                "Vérifiez l'installation d'Android SDK Platform Tools.")
+            self.retry_adb_btn.setText("⚠️ Réessayer ADB")
+            QMessageBox.warning(
+                self,
+                "Erreur",
+                "ADB toujours indisponible.\n"
+                "Vérifiez l'installation d'Android SDK Platform Tools.",
+            )
 
     def _refresh_devices(self):
-        """Rafraîchit la liste des appareils avec feedback visuel."""
+        """Rafraîchit la liste des appareils avec feedback visuel unifié."""
         if not self.adb_manager.is_adb_available():
             self.devices_combo.clear()
             self.devices_combo.addItem("ADB indisponible")
@@ -199,7 +228,7 @@ class ADBStatusWidget(QWidget):
         try:
             # Feedback visuel pour le rafraîchissement
             self.refresh_btn.setEnabled(False)
-            self.refresh_btn.setText("...")
+            self.refresh_btn.setText("🔄 ...")
             QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
 
             result = subprocess.run(
@@ -207,7 +236,7 @@ class ADBStatusWidget(QWidget):
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             self.devices_combo.clear()
@@ -242,10 +271,10 @@ class ADBStatusWidget(QWidget):
             # Restaure l'interface
             QApplication.restoreOverrideCursor()
             self.refresh_btn.setEnabled(True)
-            self.refresh_btn.setText("Rafraîchir")
+            self.refresh_btn.setText("🔄 Rafraîchir")
 
     def _toggle_connection(self):
-        """Gère la connexion/déconnexion avec feedback visuel."""
+        """Gère la connexion/déconnexion avec design unifié."""
         try:
             if self.adb_manager.is_connected():
                 logger.debug("Déconnexion demandée")
@@ -277,7 +306,6 @@ class ADBStatusWidget(QWidget):
 
     def _start_operation(self, message: str):
         """Démarre l'indication visuelle d'une opération."""
-        # Change le curseur
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
 
         # Désactive les contrôles
@@ -287,22 +315,21 @@ class ADBStatusWidget(QWidget):
 
         # Message temporaire dans le bouton
         self.original_button_text = self.connect_btn.text()
-        self.connect_btn.setText("...")
+        self.connect_btn.setText("⏳ ...")
 
-        # Message de statut si le parent (MainWindow) a une statusBar
+        # Message de statut si le parent a une statusBar
         try:
-            if hasattr(self.parent(), 'statusBar'):
+            if hasattr(self.parent(), "statusBar"):
                 self.parent().statusBar().showMessage(message)
         except:
             pass
 
     def _end_operation(self, result_message: str):
         """Termine l'indication visuelle d'une opération."""
-        # Restaure le curseur
         QApplication.restoreOverrideCursor()
 
         # Restaure le texte du bouton
-        if hasattr(self, 'original_button_text'):
+        if hasattr(self, "original_button_text"):
             self.connect_btn.setText(self.original_button_text)
 
         # Réactive les contrôles selon l'état
@@ -314,69 +341,68 @@ class ADBStatusWidget(QWidget):
 
         # Message de résultat
         try:
-            if hasattr(self.parent(), 'statusBar'):
+            if hasattr(self.parent(), "statusBar"):
                 self.parent().statusBar().showMessage(result_message)
-                # Efface le message après 3 secondes
-                QTimer.singleShot(3000,
-                                  lambda: self.parent().statusBar().showMessage(""))
+                QTimer.singleShot(
+                    3000, lambda: self.parent().statusBar().showMessage("")
+                )
         except:
             pass
 
     def _handle_connection_error(self):
-        """Gère les erreurs de connexion de manière élégante."""
+        """Gère les erreurs de connexion avec design unifié."""
         try:
-            self.status_label.setText("ERREUR")
-            self.status_label.setStyleSheet(
-                "QLabel { background-color: #ff9800; color: white; "
-                "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
-            )
-            self.connect_btn.setText("Connecter")
+            self.status_label.setText("❌ ERREUR")
+            self.status_label.setStyleSheet(StyleSheets.status_indicator("warning"))
+
+            self.connect_btn.setText("Se connecter")
             self.device_info.clear()
 
-            # Notification de l'erreur
-            QMessageBox.warning(self, "Erreur de connexion",
-                                "Une erreur est survenue lors de la connexion.\n"
-                                "Veuillez vérifier votre appareil et réessayer.")
+            QMessageBox.warning(
+                self,
+                "Erreur de connexion",
+                "Une erreur est survenue lors de la connexion.\n"
+                "Veuillez vérifier votre appareil et réessayer.",
+            )
 
         except Exception as e:
             logger.error(f"Erreur lors de la gestion d'erreur de connexion: {e}")
 
     def _update_ui(self, is_connected: bool):
-        """Met à jour l'interface selon l'état de connexion avec bouton corrigé."""
+        """Met à jour l'interface selon l'état de connexion avec design unifié."""
         try:
             if is_connected:
-                # Mise à jour de l'interface pour l'état connecté
+                # État connecté avec design unifié
                 self.status_label.setText("🟢 CONNECTÉ")
-                self.status_label.setStyleSheet("""
-                    QLabel { 
-                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                                   stop:0 #4CAF50, stop:1 #45a049);
-                        color: white; 
-                        padding: 8px 16px; 
-                        border-radius: 8px; 
-                        font-weight: bold;
-                        font-size: 12px;
-                        border: 2px solid #388E3C;
-                    }
-                """)
-                self.connect_btn.setText("Déconnecter")
-                self.connect_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #f44336;
-                        color: white;
+                self.status_label.setStyleSheet(
+                    StyleSheets.status_indicator("connected")
+                )
+
+                # Bouton de déconnexion avec style unifié
+                self.connect_btn.setText("Se déconnecter")
+                self.connect_btn.setStyleSheet(
+                    f"""
+                    QPushButton {{
+                        background-color: {DesignTokens.Colors.ERROR};
+                        color: {DesignTokens.Colors.TEXT_ON_PRIMARY};
                         border: none;
-                        border-radius: 6px;
-                        padding: 10px 20px;
-                        font-weight: bold;
-                        font-size: 12px;
-                        min-height: 30px;
+                        border-radius: {DesignTokens.BorderRadius.MEDIUM}px;
+                        padding: {DesignTokens.Spacing.SM}px {DesignTokens.Spacing.LG}px;
+                        font-weight: {DesignTokens.Typography.MEDIUM};
+                        font-size: {DesignTokens.Typography.BODY}px;
+                        min-height: 32px;
                         min-width: 100px;
-                    }
-                    QPushButton:hover {
-                        background-color: #d32f2f;
-                        border: 2px solid white;
-                    }
-                """)
+                    }}
+                    QPushButton:hover {{
+                        background-color: #D32F2F;
+                        border: 2px solid {DesignTokens.Colors.SURFACE};
+                    }}
+                    QPushButton:pressed {{
+                        background-color: #B71C1C;
+                    }}
+                """
+                )
+
                 self.devices_combo.setEnabled(False)
 
                 # Affichage des informations de l'appareil
@@ -385,12 +411,28 @@ class ADBStatusWidget(QWidget):
                         info_text = f"📱 {device_info['manufacturer']} {device_info['model']} (Android {device_info['android_version']})"
                         self.device_info.setText(info_text)
                         self.device_info.setStyleSheet(
-                            "color: #2e7d32; font-size: 11px; font-weight: bold;")
+                            f"""
+                            QLabel {{
+                                color: {DesignTokens.Colors.SUCCESS};
+                                font-size: {DesignTokens.Typography.CAPTION}px;
+                                font-weight: {DesignTokens.Typography.MEDIUM};
+                                padding: {DesignTokens.Spacing.XS}px;
+                            }}
+                        """
+                        )
                 except Exception as e:
                     logger.error(
-                        f"Erreur lors de la récupération des infos appareil: {e}")
+                        f"Erreur lors de la récupération des infos appareil: {e}"
+                    )
                     self.device_info.setText("⚠️ Erreur infos appareil")
-                    self.device_info.setStyleSheet("color: #ff9800; font-size: 11px;")
+                    self.device_info.setStyleSheet(
+                        f"""
+                        QLabel {{
+                            color: {DesignTokens.Colors.WARNING};
+                            font-size: {DesignTokens.Typography.CAPTION}px;
+                        }}
+                    """
+                    )
 
                 # Démarrage du streaming
                 if self.stream_window:
@@ -398,38 +440,16 @@ class ADBStatusWidget(QWidget):
                         logger.error("Échec du démarrage du streaming")
 
             else:
-                # Mise à jour de l'interface pour l'état déconnecté
+                # État déconnecté avec design unifié
                 self.status_label.setText("🔴 DÉCONNECTÉ")
-                self.status_label.setStyleSheet("""
-                    QLabel { 
-                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                                   stop:0 #f44336, stop:1 #d32f2f);
-                        color: white; 
-                        padding: 8px 16px; 
-                        border-radius: 8px; 
-                        font-weight: bold;
-                        font-size: 12px;
-                        border: 2px solid #c62828;
-                    }
-                """)
-                self.connect_btn.setText("Connecter")
-                self.connect_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #4CAF50;
-                        color: white;
-                        border: none;
-                        border-radius: 6px;
-                        padding: 10px 20px;
-                        font-weight: bold;
-                        font-size: 12px;
-                        min-height: 30px;
-                        min-width: 100px;
-                    }
-                    QPushButton:hover {
-                        background-color: #45a049;
-                        border: 2px solid white;
-                    }
-                """)
+                self.status_label.setStyleSheet(
+                    StyleSheets.status_indicator("disconnected")
+                )
+
+                # Bouton de connexion avec style unifié (retour au style par défaut)
+                self.connect_btn.setText("Se connecter")
+                self.connect_btn.setStyleSheet(StyleSheets.button_primary())
+
                 self.device_info.clear()
                 self.devices_combo.setEnabled(True)
 
@@ -451,10 +471,13 @@ class ADBStatusWidget(QWidget):
         """Gère les erreurs critiques du streaming."""
         try:
             logger.error(f"Erreur critique du streaming: {error_msg}")
-            QMessageBox.critical(self, "Erreur de streaming",
-                                 f"Erreur de streaming : {error_msg}\n"
-                                 f"L'appareil va être déconnecté.")
-            self._toggle_connection()  # Déconnexion de sécurité
+            QMessageBox.critical(
+                self,
+                "Erreur de streaming",
+                f"Erreur de streaming : {error_msg}\n"
+                f"L'appareil va être déconnecté.",
+            )
+            self._toggle_connection()
 
         except Exception as e:
             logger.error(f"Erreur lors du traitement de l'erreur de streaming: {e}")
@@ -473,17 +496,15 @@ class ADBStatusWidget(QWidget):
     def _handle_ui_error(self):
         """Tente de récupérer après une erreur d'interface."""
         try:
-            # Réinitialisation de l'interface aux valeurs par défaut
-            self.status_label.setText("ERREUR")
-            self.status_label.setStyleSheet(
-                "QLabel { background-color: #ff9800; color: white; "
-                "padding: 3px 8px; border-radius: 3px; font-weight: bold; }"
-            )
-            self.connect_btn.setText("Connecter")
+            self.status_label.setText("❌ ERREUR")
+            self.status_label.setStyleSheet(StyleSheets.status_indicator("warning"))
+
+            self.connect_btn.setText("Se connecter")
+            self.connect_btn.setStyleSheet(StyleSheets.button_primary())
+
             self.device_info.clear()
             self.devices_combo.setEnabled(True)
 
-            # Arrêt de sécurité du streaming
             if self.stream_window:
                 self.stream_window.stop_stream()
 

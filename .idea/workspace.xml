@@ -4,10 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="feat: améliore l'interface utilisateur moderne&#10;&#10;- Agrandit les boutons photo avec organisation en grille 2x2&#10;- Ajoute emojis contextuels (🔒🔍📱📦) pour clarifier les actions&#10;- Corrige bouton Connecter/Déconnecter (taille et texte)&#10;- Améliore effets hover avec bordures et zoom visible&#10;- Affiche noms complets d'objets dans les informations&#10;- Style moderne avec dégradés et couleurs cohérentes&#10;- Optimise l'utilisation de l'espace interface">
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Fix fonctions doublon">
+      <change afterPath="$PROJECT_DIR$/src/ui/panels/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/panels/control_panel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/panels/log_panel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/panels/navigation_panel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/theme/design_system.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/evidence/objet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/evidence/objet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +109,7 @@
       <workItem from="1733815023315" duration="9402000" />
       <workItem from="1733905017517" duration="5454000" />
       <workItem from="1750144826384" duration="1835000" />
-      <workItem from="1750146705062" duration="4059000" />
+      <workItem from="1750146705062" duration="5965000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -306,7 +311,23 @@
       <option name="project" value="LOCAL" />
       <updated>1750150536726</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="feat: ajoute tri alphabétique des éléments&#10;&#10;- Trie les scellés par ordre alphabétique (insensible à la casse)&#10;- Organise les objets d'essai dans l'ordre A, B, C...&#10;- Classe les photos par type puis séquence (Fermé → Contenu → Recond.)&#10;- Améliore la navigation et la prévisibilité de l'interface&#10;- Logs informatifs pour le nombre d'éléments chargés">
+      <option name="closed" value="true" />
+      <created>1750150832952</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1750150832952</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Fix fonctions doublon">
+      <option name="closed" value="true" />
+      <created>1750151759263</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1750151759263</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -335,11 +356,13 @@
     <MESSAGE value="feat: améliore les messages d'erreur utilisateur&#10;&#10;- Remplace les erreurs techniques par des messages clairs&#10;- Ajoute suggestions d'actions correctives pour chaque erreur&#10;- Gestion spécifique erreurs ADB, fichiers et streaming&#10;- Messages en français avec solutions pratiques&#10;- Améliore l'expérience utilisateur en cas de problème" />
     <MESSAGE value="feat: ajoute visualisation et suppression des photos&#10;&#10;- Clic droit sur photo → menu contextuel avec visualiser/supprimer&#10;- Double-clic pour ouvrir la photo dans le visualiseur système&#10;- Touche Suppr pour suppression rapide avec confirmation&#10;- Rafraîchissement automatique des listes après suppression&#10;- Messages informatifs et gestion d'erreurs robuste" />
     <MESSAGE value="feat: améliore l'interface utilisateur moderne&#10;&#10;- Agrandit les boutons photo avec organisation en grille 2x2&#10;- Ajoute emojis contextuels () pour clarifier les actions&#10;- Corrige bouton Connecter/Déconnecter (taille et texte)&#10;- Améliore effets hover avec bordures et zoom visible&#10;- Affiche noms complets d'objets dans les informations&#10;- Style moderne avec dégradés et couleurs cohérentes&#10;- Optimise l'utilisation de l'espace interface" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: améliore l'interface utilisateur moderne&#10;&#10;- Agrandit les boutons photo avec organisation en grille 2x2&#10;- Ajoute emojis contextuels () pour clarifier les actions&#10;- Corrige bouton Connecter/Déconnecter (taille et texte)&#10;- Améliore effets hover avec bordures et zoom visible&#10;- Affiche noms complets d'objets dans les informations&#10;- Style moderne avec dégradés et couleurs cohérentes&#10;- Optimise l'utilisation de l'espace interface" />
+    <MESSAGE value="feat: ajoute tri alphabétique des éléments&#10;&#10;- Trie les scellés par ordre alphabétique (insensible à la casse)&#10;- Organise les objets d'essai dans l'ordre A, B, C...&#10;- Classe les photos par type puis séquence (Fermé → Contenu → Recond.)&#10;- Améliore la navigation et la prévisibilité de l'interface&#10;- Logs informatifs pour le nombre d'éléments chargés" />
+    <MESSAGE value="Fix fonctions doublon" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix fonctions doublon" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750150553760" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750152174622" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1750145386722" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
