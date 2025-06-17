@@ -13,6 +13,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem, QColor, \
     QTextCursor, QPalette
+from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot, QTimer
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QApplication
 from pathlib import Path
 from loguru import logger
 from typing import Optional, Dict, List
@@ -835,7 +838,7 @@ class MainWindow(QMainWindow):
 
     def _take_photo(self, photo_type: str):
         """
-        Prend une photo avec l'appareil connecté.
+        Prend une photo avec l'appareil connecté avec feedback visuel.
 
         Args:
             photo_type: Type de photo ('ferme', 'contenu', 'objet', 'recond')
@@ -844,6 +847,9 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            # === DÉBUT DE L'OPÉRATION ===
+            self._start_photo_operation(photo_type)
+
             # Détermine le préfixe selon le type
             prefix_map = {
                 'ferme': 'Ferme',
@@ -855,6 +861,7 @@ class MainWindow(QMainWindow):
             # Vérifie que l'objet est sélectionné pour les photos d'objet
             if photo_type == 'objet' and not self.current_object:
                 logger.error("Aucun objet sélectionné")
+                self._end_photo_operation(False, "Aucun objet sélectionné")
                 return
 
             prefix = prefix_map[photo_type]
@@ -862,7 +869,6 @@ class MainWindow(QMainWindow):
             # Trouve le prochain numéro disponible
             max_num = 0
             pattern = f"*{prefix}_*.jpg"
-            # Utilise directement current_scelle qui est déjà un Path
             for photo in self.current_scelle.glob(pattern):
                 try:
                     num = int(photo.stem.split('_')[-1])
@@ -877,26 +883,74 @@ class MainWindow(QMainWindow):
             file_name = f"{scelle_name}_{prefix}_{next_num}.jpg"
             save_path = self.current_scelle / file_name
 
+            # Met à jour le message pendant l'opération
+            self.statusBar().showMessage(f"Prise de photo en cours... ({file_name})")
+
             # Prend la photo
-            if self.adb_manager.take_photo(save_path):
-                self.statusBar().showMessage(f"Photo sauvegardée : {file_name}")
+            success = self.adb_manager.take_photo(save_path)
+
+            if success:
                 # Met à jour la liste appropriée selon le type de photo
                 if photo_type == 'objet':
-                    # Met à jour la liste des photos d'objet
                     photos = []
                     for photo in self.current_scelle.glob(
                             f"*_{self.current_object}_*.jpg"):
                         photos.append(photo.name)
                     self.object_photos.update_photos(photos)
                 else:
-                    # Met à jour la liste des photos du scellé
                     self._update_scelle_photos()
+
+                self._end_photo_operation(True, f"Photo sauvegardée : {file_name}")
             else:
-                self.statusBar().showMessage("Erreur lors de la prise de photo")
+                self._end_photo_operation(False, "Erreur lors de la prise de photo")
 
         except Exception as e:
             logger.error(f"Erreur lors de la prise de photo : {e}")
-            self.statusBar().showMessage("Erreur lors de la prise de photo")
+            self._end_photo_operation(False, "Erreur lors de la prise de photo")
+
+    def _start_photo_operation(self, photo_type: str):
+        """Démarre l'indication visuelle d'une opération photo."""
+        # Change le curseur en sablier
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+
+        # Désactive tous les boutons photo
+        for btn in self.photo_buttons.values():
+            btn.setEnabled(False)
+        self.btn_open_camera.setEnabled(False)
+
+        # Message dans la barre d'état
+        type_names = {
+            'ferme': 'scellé fermé',
+            'contenu': 'contenu',
+            'objet': 'objet d\'essai',
+            'recond': 'reconditionnement'
+        }
+        type_name = type_names.get(photo_type, photo_type)
+        self.statusBar().showMessage(f"Prise de photo {type_name}...")
+
+    def _end_photo_operation(self, success: bool, message: str):
+        """Termine l'indication visuelle d'une opération photo."""
+        # Restaure le curseur normal
+        QApplication.restoreOverrideCursor()
+
+        # Réactive les boutons selon l'état de connexion
+        self._update_photo_buttons()
+
+        # Message de résultat
+        self.statusBar().showMessage(message)
+
+        # Si succès, efface le message après 3 secondes
+        if success:
+            QTimer.singleShot(3000, lambda: self.statusBar().showMessage(""))
+
+    def _start_connection_operation(self):
+        """Démarre l'indication visuelle d'une opération de connexion."""
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        # Le widget ADB gère déjà la désactivation de ses boutons
+
+    def _end_connection_operation(self):
+        """Termine l'indication visuelle d'une opération de connexion."""
+        QApplication.restoreOverrideCursor()
 
     def _open_explorer(self, path: Path):
         """Ouvre l'explorateur Windows au chemin spécifié."""

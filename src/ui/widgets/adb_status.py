@@ -9,6 +9,9 @@ from PyQt6.QtWidgets import (
     QStatusBar,
     QComboBox, QVBoxLayout, QMessageBox,
 )
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt, pyqtSignal
 from loguru import logger
 
@@ -162,7 +165,7 @@ class ADBStatusWidget(QWidget):
                                 "Vérifiez l'installation d'Android SDK Platform Tools.")
 
     def _refresh_devices(self):
-        """Rafraîchit la liste des appareils disponibles."""
+        """Rafraîchit la liste des appareils avec feedback visuel."""
         if not self.adb_manager.is_adb_available():
             self.devices_combo.clear()
             self.devices_combo.addItem("ADB indisponible")
@@ -171,12 +174,17 @@ class ADBStatusWidget(QWidget):
             return
 
         try:
+            # Feedback visuel pour le rafraîchissement
+            self.refresh_btn.setEnabled(False)
+            self.refresh_btn.setText("...")
+            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+
             result = subprocess.run(
                 f'"{self.adb_manager.adb_command}" devices',
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=5  # Timeout de 5 secondes
+                timeout=5
             )
 
             self.devices_combo.clear()
@@ -207,24 +215,89 @@ class ADBStatusWidget(QWidget):
             self.devices_combo.addItem("Erreur de détection")
             self.devices_combo.setEnabled(False)
             self.connect_btn.setEnabled(False)
+        finally:
+            # Restaure l'interface
+            QApplication.restoreOverrideCursor()
+            self.refresh_btn.setEnabled(True)
+            self.refresh_btn.setText("Rafraîchir")
+
     def _toggle_connection(self):
-        """Gère la connexion/déconnexion avec démarrage/arrêt automatique du streaming."""
+        """Gère la connexion/déconnexion avec feedback visuel."""
         try:
             if self.adb_manager.is_connected():
                 logger.debug("Déconnexion demandée")
+                self._start_operation("Déconnexion...")
+
                 self.adb_manager.disconnect()
                 self._update_ui(False)
+                self._end_operation("Déconnecté")
+
             else:
                 selected_device = self.devices_combo.currentText()
                 if selected_device and selected_device != "Aucun appareil détecté":
                     logger.debug(f"Tentative de connexion à {selected_device}")
+                    self._start_operation(f"Connexion à {selected_device}...")
+
                     self.adb_manager.current_device = selected_device
-                    if self.adb_manager.connect():
+                    success = self.adb_manager.connect()
+
+                    if success:
                         self._update_ui(True)
+                        self._end_operation("Connecté avec succès")
+                    else:
+                        self._end_operation("Échec de la connexion")
 
         except Exception as e:
             logger.error(f"Erreur lors du toggle de connexion: {e}")
             self._handle_connection_error()
+            self._end_operation("Erreur de connexion")
+
+    def _start_operation(self, message: str):
+        """Démarre l'indication visuelle d'une opération."""
+        # Change le curseur
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+
+        # Désactive les contrôles
+        self.connect_btn.setEnabled(False)
+        self.refresh_btn.setEnabled(False)
+        self.devices_combo.setEnabled(False)
+
+        # Message temporaire dans le bouton
+        self.original_button_text = self.connect_btn.text()
+        self.connect_btn.setText("...")
+
+        # Message de statut si le parent (MainWindow) a une statusBar
+        try:
+            if hasattr(self.parent(), 'statusBar'):
+                self.parent().statusBar().showMessage(message)
+        except:
+            pass
+
+    def _end_operation(self, result_message: str):
+        """Termine l'indication visuelle d'une opération."""
+        # Restaure le curseur
+        QApplication.restoreOverrideCursor()
+
+        # Restaure le texte du bouton
+        if hasattr(self, 'original_button_text'):
+            self.connect_btn.setText(self.original_button_text)
+
+        # Réactive les contrôles selon l'état
+        self.connect_btn.setEnabled(True)
+        if self.adb_manager.is_adb_available():
+            self.refresh_btn.setEnabled(True)
+            if not self.adb_manager.is_connected():
+                self.devices_combo.setEnabled(True)
+
+        # Message de résultat
+        try:
+            if hasattr(self.parent(), 'statusBar'):
+                self.parent().statusBar().showMessage(result_message)
+                # Efface le message après 3 secondes
+                QTimer.singleShot(3000,
+                                  lambda: self.parent().statusBar().showMessage(""))
+        except:
+            pass
 
     def _handle_connection_error(self):
         """Gère les erreurs de connexion de manière élégante."""

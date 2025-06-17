@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="Sécurisation en cas de spam bouton connecter deco">
-      <change afterPath="$PROJECT_DIR$/src/utils/validation.py" afterDir="false" />
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="fix: améliore validation des noms de fichiers&#10;&#10;- Ajoute FilenameValidator avec validation robuste Windows&#10;- Vérifie caractères interdits, noms réservés, longueur&#10;- Bouton correction automatique dans les dialogues&#10;- Messages d'erreur clairs et actionables&#10;- Prévient les erreurs de création de dossiers">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/dialogs/create_affaire_dialog.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/dialogs/create_affaire_dialog.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/dialogs/create_scelle_dialog.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/dialogs/create_scelle_dialog.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/widgets/stream_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/stream_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/adb_status.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,7 +104,7 @@
       <workItem from="1733815023315" duration="9402000" />
       <workItem from="1733905017517" duration="5454000" />
       <workItem from="1750144826384" duration="1835000" />
-      <workItem from="1750146705062" duration="194000" />
+      <workItem from="1750146705062" duration="693000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -260,7 +258,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750146587711</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="fix: améliore validation des noms de fichiers&#10;&#10;- Ajoute FilenameValidator avec validation robuste Windows&#10;- Vérifie caractères interdits, noms réservés, longueur&#10;- Bouton correction automatique dans les dialogues&#10;- Messages d'erreur clairs et actionables&#10;- Prévient les erreurs de création de dossiers">
+      <option name="closed" value="true" />
+      <created>1750147051018</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1750147051018</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -283,11 +289,12 @@
     <MESSAGE value="Correction bug création dossier crash" />
     <MESSAGE value="Fix crash si adb non trouvé / amélioration UI UX si adb non trouvé" />
     <MESSAGE value="Sécurisation en cas de spam bouton connecter deco" />
-    <option name="LAST_COMMIT_MESSAGE" value="Sécurisation en cas de spam bouton connecter deco" />
+    <MESSAGE value="fix: améliore validation des noms de fichiers&#10;&#10;- Ajoute FilenameValidator avec validation robuste Windows&#10;- Vérifie caractères interdits, noms réservés, longueur&#10;- Bouton correction automatique dans les dialogues&#10;- Messages d'erreur clairs et actionables&#10;- Prévient les erreurs de création de dossiers" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: améliore validation des noms de fichiers&#10;&#10;- Ajoute FilenameValidator avec validation robuste Windows&#10;- Vérifie caractères interdits, noms réservés, longueur&#10;- Bouton correction automatique dans les dialogues&#10;- Messages d'erreur clairs et actionables&#10;- Prévient les erreurs de création de dossiers" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750146834856" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750147393830" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1750145386722" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
