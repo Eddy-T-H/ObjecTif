@@ -348,7 +348,7 @@ class MainWindow(QMainWindow):
         return group
 
     def _setup_scelles_group(self) -> QGroupBox:
-        """Configure la zone des scellés avec gestion améliorée du redimensionnement."""
+        """Configure la zone des scellés avec gestion des actions photos."""
         group = QGroupBox("Scellés")
         group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(group)
@@ -363,14 +363,13 @@ class MainWindow(QMainWindow):
 
         # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(
-            False)  # Empêche de réduire complètement les widgets
+        splitter.setChildrenCollapsible(False)
         splitter.setSizePolicy(QSizePolicy.Policy.Expanding,
                                QSizePolicy.Policy.Expanding)
 
         # Arborescence des scellés
         self.scelles_tree = QTreeView()
-        self.scelles_tree.setMinimumWidth(150)
+        self.scelles_tree.setMinimumWidth(100)
         self.scelles_tree.setSizePolicy(QSizePolicy.Policy.Expanding,
                                         QSizePolicy.Policy.Expanding)
         self.scelles_model = QStandardItemModel()
@@ -379,22 +378,18 @@ class MainWindow(QMainWindow):
         self.scelles_tree.clicked.connect(self._on_scelle_selected)
         splitter.addWidget(self.scelles_tree)
 
-        # Liste des photos
+        # Liste des photos avec actions
         self.scelle_photos = PhotoListWidget("Photos du scellé:")
+        # Connecte le signal de suppression pour rafraîchir
+        self.scelle_photos.photo_deleted.connect(self._on_scelle_photo_deleted)
         splitter.addWidget(self.scelle_photos)
 
-        # Ajuster les tailles minimales
-        self.scelles_tree.setMinimumWidth(100)  # Au lieu de 150
-        self.scelle_photos.setMinimumWidth(100)  # Taille minimale réduite
-
-        # Définit les proportions initiales
         splitter.setSizes([100, 100])
-
         layout.addWidget(splitter)
         return group
 
     def _setup_objects_group(self) -> QGroupBox:
-        """Configure la zone des objets avec gestion améliorée du redimensionnement."""
+        """Configure la zone des objets avec gestion des actions photos."""
         group = QGroupBox("Objets d'essai")
         group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(group)
@@ -417,26 +412,42 @@ class MainWindow(QMainWindow):
 
         # Liste des objets
         self.objects_list = QTreeWidget()
-        self.objects_list.setMinimumWidth(150)
+        self.objects_list.setMinimumWidth(100)
         self.objects_list.setSizePolicy(QSizePolicy.Policy.Expanding,
                                         QSizePolicy.Policy.Expanding)
         self.objects_list.setHeaderLabels(["Objets"])
         self.objects_list.itemClicked.connect(self._on_object_selected)
         splitter.addWidget(self.objects_list)
 
-        # Liste des photos
+        # Liste des photos avec actions
         self.object_photos = PhotoListWidget("Photos de l'objet:")
+        # Connecte le signal de suppression pour rafraîchir
+        self.object_photos.photo_deleted.connect(self._on_object_photo_deleted)
         splitter.addWidget(self.object_photos)
 
-        # Ajuster les tailles minimales
-        self.objects_list.setMinimumWidth(100)  # Au lieu de 150
-        self.object_photos.setMinimumWidth(100)  # Taille minimale réduite
-
-        # Ajuster les proportions du splitter
-        splitter.setSizes([100, 100])  # Proportions plus équilibrées
-
+        splitter.setSizes([100, 100])
         layout.addWidget(splitter)
         return group
+
+    def _on_scelle_photo_deleted(self, photo_name: str):
+        """Appelée quand une photo de scellé est supprimée."""
+        logger.info(f"Photo de scellé supprimée : {photo_name}")
+        self.statusBar().showMessage(f"Photo supprimée : {photo_name}", 3000)
+
+        # Rafraîchit la liste des photos du scellé
+        self._update_scelle_photos()
+
+    def _on_object_photo_deleted(self, photo_name: str):
+        """Appelée quand une photo d'objet est supprimée."""
+        logger.info(f"Photo d'objet supprimée : {photo_name}")
+        self.statusBar().showMessage(f"Photo supprimée : {photo_name}", 3000)
+
+        # Rafraîchit la liste des photos de l'objet actuel
+        if self.current_object and self.current_scelle:
+            photos = []
+            for photo in self.current_scelle.glob(f"*_{self.current_object}_*.jpg"):
+                photos.append(photo.name)
+            self.object_photos.update_photos(photos)
 
     def _create_new_affaire(self):
         """
@@ -537,7 +548,7 @@ class MainWindow(QMainWindow):
         logger.debug("Sélection d'un scellé")
 
         self.objects_list.clear()
-        self.object_photos.clear()  # Vide la liste des photos d'objet
+        self.object_photos.clear()
 
         try:
             item = self.scelles_model.itemFromIndex(index)
@@ -552,18 +563,21 @@ class MainWindow(QMainWindow):
                 self.current_scelle = scelle.path
                 self.objet_manager = ObjetEssai(scelle.path)
 
+                # Configure le dossier pour les widgets photo
+                self.scelle_photos.set_photo_folder(scelle.path)
+                self.object_photos.set_photo_folder(scelle.path)
+
                 # Met à jour l'interface
                 self._update_photo_buttons()
                 self._load_existing_objects()
                 self.add_object_btn.setEnabled(True)
 
-                # Met à jour la liste des photos du scellé (uniquement photos générales)
+                # Met à jour la liste des photos du scellé
                 self._update_scelle_photos()
 
         except Exception as e:
             logger.error(f"Erreur lors de la sélection du scellé: {e}")
             QMessageBox.critical(self, "Erreur", str(e))
-            self.scelles_tree.setEnabled(True)
 
     def _update_scelle_photos(self):
         """Met à jour la liste des photos du scellé en excluant les photos d'objets."""
@@ -649,10 +663,7 @@ class MainWindow(QMainWindow):
         self.btn_photo_objet.setEnabled(False)
 
     def _on_object_selected(self, item):
-        """
-        Gère la sélection d'un objet dans la liste.
-        Active le bouton de photo d'objet et met à jour la liste des photos.
-        """
+        """Gère la sélection d'un objet dans la liste."""
         logger.debug("Sélection d'un objet")
 
         object_id = item.data(0, Qt.ItemDataRole.UserRole)

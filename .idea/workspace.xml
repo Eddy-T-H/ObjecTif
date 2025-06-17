@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="feat: ajoute popup d'état pour opérations photo&#10;&#10;- Popup modale simple pendant prise/transfert de photos&#10;- Messages d'état en temps réel adaptés au nombre de photos&#10;- Interface bloquée pendant opération puis débloquée immédiatement&#10;- Garde la logique de transfert de toutes les photos présentes&#10;- Améliore le feedback utilisateur sans complexité">
-      <change afterPath="$PROJECT_DIR$/src/utils/error_handler.py" afterDir="false" />
+    <list default="true" id="904b2628-2ce1-46c1-a45f-e762e4724f6f" name="Changes" comment="feat: améliore les messages d'erreur utilisateur&#10;&#10;- Remplace les erreurs techniques par des messages clairs&#10;- Ajoute suggestions d'actions correctives pour chaque erreur&#10;- Gestion spécifique erreurs ADB, fichiers et streaming&#10;- Messages en français avec solutions pratiques&#10;- Améliore l'expérience utilisateur en cas de problème">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/widgets/photo_list.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/widgets/photo_list.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,7 +104,7 @@
       <workItem from="1733815023315" duration="9402000" />
       <workItem from="1733905017517" duration="5454000" />
       <workItem from="1750144826384" duration="1835000" />
-      <workItem from="1750146705062" duration="1819000" />
+      <workItem from="1750146705062" duration="2356000" />
     </task>
     <task id="LOCAL-00001" summary="Poursuite dev&#10;Refactorisation propre du code (en théorie)">
       <option name="closed" value="true" />
@@ -284,7 +282,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750148168208</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="feat: améliore les messages d'erreur utilisateur&#10;&#10;- Remplace les erreurs techniques par des messages clairs&#10;- Ajoute suggestions d'actions correctives pour chaque erreur&#10;- Gestion spécifique erreurs ADB, fichiers et streaming&#10;- Messages en français avec solutions pratiques&#10;- Améliore l'expérience utilisateur en cas de problème">
+      <option name="closed" value="true" />
+      <created>1750148637134</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1750148637134</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -310,11 +316,12 @@
     <MESSAGE value="fix: améliore validation des noms de fichiers&#10;&#10;- Ajoute FilenameValidator avec validation robuste Windows&#10;- Vérifie caractères interdits, noms réservés, longueur&#10;- Bouton correction automatique dans les dialogues&#10;- Messages d'erreur clairs et actionables&#10;- Prévient les erreurs de création de dossiers" />
     <MESSAGE value="feat: ajoute feedback visuel pour opérations longues&#10;&#10;- Curseur sablier pendant prise de photo et connexion ADB&#10;- Désactivation des boutons pendant opérations&#10;- Messages informatifs dans barre d'état&#10;- Auto-effacement des messages de succès après 3s&#10;- Améliore l'expérience utilisateur" />
     <MESSAGE value="feat: ajoute popup d'état pour opérations photo&#10;&#10;- Popup modale simple pendant prise/transfert de photos&#10;- Messages d'état en temps réel adaptés au nombre de photos&#10;- Interface bloquée pendant opération puis débloquée immédiatement&#10;- Garde la logique de transfert de toutes les photos présentes&#10;- Améliore le feedback utilisateur sans complexité" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: ajoute popup d'état pour opérations photo&#10;&#10;- Popup modale simple pendant prise/transfert de photos&#10;- Messages d'état en temps réel adaptés au nombre de photos&#10;- Interface bloquée pendant opération puis débloquée immédiatement&#10;- Garde la logique de transfert de toutes les photos présentes&#10;- Améliore le feedback utilisateur sans complexité" />
+    <MESSAGE value="feat: améliore les messages d'erreur utilisateur&#10;&#10;- Remplace les erreurs techniques par des messages clairs&#10;- Ajoute suggestions d'actions correctives pour chaque erreur&#10;- Gestion spécifique erreurs ADB, fichiers et streaming&#10;- Messages en français avec solutions pratiques&#10;- Améliore l'expérience utilisateur en cas de problème" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: améliore les messages d'erreur utilisateur&#10;&#10;- Remplace les erreurs techniques par des messages clairs&#10;- Ajoute suggestions d'actions correctives pour chaque erreur&#10;- Gestion spécifique erreurs ADB, fichiers et streaming&#10;- Messages en français avec solutions pratiques&#10;- Améliore l'expérience utilisateur en cas de problème" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ObjecTif$test.coverage" NAME="test Coverage Results" MODIFIED="1732807371803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750148112777" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/ObjecTif$main.coverage" NAME="main Coverage Results" MODIFIED="1750148554180" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$adb_manager.coverage" NAME="adb_manager Coverage Results" MODIFIED="1733232263300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/core/device" />
     <SUITE FILE_PATH="coverage/ObjecTif$config.coverage" NAME="config Coverage Results" MODIFIED="1732808750613" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/ObjecTif$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1750145386722" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
