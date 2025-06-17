@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QMessageBox,
     QFileDialog,
+    QGroupBox,
+    QPushButton,
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
@@ -22,7 +24,7 @@ from loguru import logger
 from typing import Optional
 
 from src.config import AppConfig
-from src.ui.theme.design_system import DesignTokens, ComponentFactory
+# SUPPRESSION: from src.ui.theme.design_system import DesignTokens, ComponentFactory
 from src.ui.dialogs.create_affaire_dialog import CreateAffaireDialog
 from src.ui.dialogs.create_scelle_dialog import CreateScelleDialog
 from src.ui.widgets.photo_list import PhotoListWidget
@@ -30,6 +32,9 @@ from src.core.device import ADBManager
 from src.core.evidence.scelle import Scelle
 from src.core.evidence.objet import ObjetEssai
 from src.utils.error_handler import UserFriendlyErrorHandler
+
+# AJOUT: Import du gestionnaire de thème
+from src.ui.theme.theme_manager import set_widget_class
 
 
 class NavigationPanel(QWidget):
@@ -55,15 +60,10 @@ class NavigationPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        """Configure l'interface du panel de navigation."""
+        """Configure l'interface du panel de navigation avec qt-material."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            DesignTokens.Spacing.XS,
-            DesignTokens.Spacing.XS,
-            DesignTokens.Spacing.XS,
-            DesignTokens.Spacing.XS,
-        )
-        layout.setSpacing(DesignTokens.Spacing.XS)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
         # === SECTION WORKSPACE ===
         self._setup_workspace_section(layout)
@@ -91,39 +91,26 @@ class NavigationPanel(QWidget):
         layout.addWidget(splitter)
 
     def _setup_workspace_section(self, layout):
-        """Configure la section de sélection du workspace."""
+        """Configure la section de sélection du workspace avec qt-material."""
         workspace_widget = QWidget()
         workspace_layout = QHBoxLayout(workspace_widget)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
-        workspace_layout.setSpacing(DesignTokens.Spacing.XS)
+        workspace_layout.setSpacing(4)
 
-        # Label titre
+        # Label titre - SUPPRESSION du setStyleSheet
         workspace_label_title = QLabel("Dossier de travail :")
-        workspace_label_title.setStyleSheet(
-            f"""
-            QLabel {{
-                font-weight: {DesignTokens.Typography.MEDIUM};
-                color: {DesignTokens.Colors.TEXT_SECONDARY};
-                font-size: {DesignTokens.Typography.CAPTION}px;
-            }}
-        """
-        )
+        # qt-material gère automatiquement le style
 
-        # Label du chemin actuel
+        # Label du chemin actuel - SUPPRESSION du setStyleSheet
         self.workspace_label = QLabel("Non configuré")
-        self.workspace_label.setStyleSheet(
-            f"""
-            QLabel {{
-                color: {DesignTokens.Colors.TEXT_PRIMARY};
-                font-size: {DesignTokens.Typography.CAPTION}px;
-            }}
-        """
-        )
+        # qt-material gère automatiquement le style
 
-        # Bouton compact pour changer le workspace
-        change_workspace_btn = ComponentFactory.create_compact_button("...")
+        # Bouton compact pour changer le workspace - SUPPRESSION du ComponentFactory
+        change_workspace_btn = QPushButton("...")
         change_workspace_btn.setToolTip("Changer le dossier de travail")
+        change_workspace_btn.setFixedWidth(30)
         change_workspace_btn.clicked.connect(self._select_workspace)
+        # qt-material applique automatiquement un style moderne
 
         workspace_layout.addWidget(workspace_label_title)
         workspace_layout.addWidget(self.workspace_label, stretch=1)
@@ -132,39 +119,33 @@ class NavigationPanel(QWidget):
         layout.addWidget(workspace_widget)
 
     def _setup_cases_section(self):
-        """Configure la section des affaires avec boutons navigation."""
-        group = ComponentFactory.create_group_box("📁 Dossiers",
-                                                  DesignTokens.Colors.PRIMARY)
+        """Configure la section des affaires avec qt-material."""
+        group = QGroupBox("📁 Dossiers")
         layout = QVBoxLayout(group)
-        layout.setSpacing(DesignTokens.Spacing.XS)
-        layout.setContentsMargins(
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-        )
+        layout.setSpacing(4)
+        layout.setContentsMargins(8, 12, 8, 8)
 
-        # Boutons d'action
+        # Boutons d'action - SUPPRESSION du ComponentFactory
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(DesignTokens.Spacing.XS)
+        btn_layout.setSpacing(4)
 
-        # Bouton principal pour créer → Navigation
-        add_btn = ComponentFactory.create_navigation_button("Nouveau")
+        # Bouton principal pour créer - qt-material gère le style
+        add_btn = QPushButton("Nouveau")
         add_btn.clicked.connect(self._create_new_case)
         btn_layout.addWidget(add_btn)
 
-        # Bouton utilitaire → Compact
-        self.explorer_btn = ComponentFactory.create_navigation_button("Ouvrir dans l'explorateur")
-        self.explorer_btn.setToolTip(
-            "Ouvrir dans l'explorateur")  # Tooltip car plus petit
+        # Bouton utilitaire - qt-material gère le style
+        self.explorer_btn = QPushButton("Ouvrir dans l'explorateur")
+        self.explorer_btn.setToolTip("Ouvrir dans l'explorateur")
         self.explorer_btn.setEnabled(False)
         self.explorer_btn.clicked.connect(self._open_explorer)
         btn_layout.addWidget(self.explorer_btn)
 
         layout.addLayout(btn_layout)
 
-        # TreeView des affaires
-        self.cases_tree = ComponentFactory.create_tree_view()
+        # TreeView des affaires - SUPPRESSION du ComponentFactory
+        self.cases_tree = QTreeView()
+        # qt-material applique automatiquement un style moderne aux TreeView
         self.cases_model = QFileSystemModel()
         self.cases_model.setRootPath("")
         self.cases_tree.setModel(self.cases_model)
@@ -179,29 +160,26 @@ class NavigationPanel(QWidget):
         return group
 
     def _setup_scelles_section(self):
-        """Configure la section des scellés."""
-        group = ComponentFactory.create_group_box("🔒 Scellés", DesignTokens.Colors.SUCCESS)
+        """Configure la section des scellés avec qt-material."""
+        group = QGroupBox("🔒 Scellés")
 
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-        )
-        layout.setSpacing(DesignTokens.Spacing.XS)
+        layout.setContentsMargins(8, 12, 8, 8)
+        layout.setSpacing(4)
 
-        # Bouton de taille navigation pour créer des scellés
-        add_scelle_btn = ComponentFactory.create_navigation_button("Ajouter un scellé")
+        # Bouton de navigation pour créer des scellés - SUPPRESSION du ComponentFactory
+        add_scelle_btn = QPushButton("Ajouter un scellé")
         add_scelle_btn.clicked.connect(self._create_new_scelle)
+        # qt-material applique automatiquement un style moderne
         layout.addWidget(add_scelle_btn)
 
         # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Arborescence des scellés
-        self.scelles_tree = ComponentFactory.create_tree_view()
+        # Arborescence des scellés - SUPPRESSION du ComponentFactory
+        self.scelles_tree = QTreeView()
+        # qt-material applique automatiquement un style moderne
         self.scelles_tree.setMinimumWidth(100)
         self.scelles_model = QStandardItemModel()
         self.scelles_model.setHorizontalHeaderLabels(["Scellés"])
@@ -219,33 +197,26 @@ class NavigationPanel(QWidget):
         return group
 
     def _setup_objects_section(self):
-        """Configure la section des objets."""
-        group = ComponentFactory.create_group_box("📱 Objets d'essai", "#9C27B0")
+        """Configure la section des objets avec qt-material."""
+        group = QGroupBox("📱 Objets d'essai")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-        )
-        layout.setSpacing(DesignTokens.Spacing.XS)
+        layout.setContentsMargins(8, 12, 8, 8)
+        layout.setSpacing(4)
 
-        # Bouton de taille navigation pour créer des objets
-        self.add_object_btn = ComponentFactory.create_navigation_button(
-            "Ajouter un objet")
+        # Bouton de navigation pour créer des objets - SUPPRESSION du ComponentFactory
+        self.add_object_btn = QPushButton("Ajouter un objet")
         self.add_object_btn.clicked.connect(self._create_new_object)
         self.add_object_btn.setEnabled(False)
+        # qt-material applique automatiquement un style moderne
         layout.addWidget(self.add_object_btn)
 
         # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Liste des objets
+        # Liste des objets - SUPPRESSION du setStyleSheet
         self.objects_list = QTreeWidget()
-        self.objects_list.setStyleSheet(
-            ComponentFactory.create_tree_view().styleSheet()
-        )
+        # qt-material applique automatiquement un style moderne aux TreeWidget
         self.objects_list.setMinimumWidth(100)
         self.objects_list.setHeaderLabels(["Objets"])
         self.objects_list.itemClicked.connect(self._on_object_clicked)
@@ -433,7 +404,6 @@ class NavigationPanel(QWidget):
         """Ouvre l'explorateur sur l'affaire actuelle."""
         if self.current_case_path and self.current_case_path.exists():
             import os
-
             os.startfile(str(self.current_case_path))
 
     # === MÉTHODES DE CHARGEMENT DE DONNÉES ===

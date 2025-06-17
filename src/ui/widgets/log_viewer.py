@@ -3,6 +3,8 @@
 from PyQt6.QtWidgets import QPlainTextEdit
 from PyQt6.QtGui import QColor, QPalette, QTextCursor
 
+from src.ui.theme.theme_manager import set_widget_class
+
 
 class ColoredLogViewer(QPlainTextEdit):
     """Terminal avec coloration syntaxique pour les logs."""
@@ -14,19 +16,25 @@ class ColoredLogViewer(QPlainTextEdit):
         self.setMinimumHeight(100)
         self.document().setMaximumBlockCount(5000)  # Limite le nombre de lignes
 
+        # AJOUT: Application de la classe CSS au lieu de setStyleSheet
+        set_widget_class(self, "log-viewer")
+
     def append_log(self, message, level="INFO"):
         cursor = self.textCursor()
         format = self.currentCharFormat()
 
-        # Utilise QPalette pour les couleurs système
+        # qt-material ne gère pas automatiquement les couleurs de logs
+        # donc on garde cette logique mais on utilise les couleurs du thème
         if level == "DEBUG":
             format.setForeground(
                 self.palette().color(QPalette.ColorRole.PlaceholderText)
             )
         elif level == "WARNING":
-            format.setForeground(QColor(255, 165, 0))  # Orange
+            # Utilise une couleur orange compatible avec le thème
+            format.setForeground(QColor("#FF9800"))  # Material Orange
         elif level == "ERROR" or level == "CRITICAL":
-            format.setForeground(QColor(255, 0, 0))  # Rouge
+            # Utilise une couleur rouge compatible avec le thème
+            format.setForeground(QColor("#F44336"))  # Material Red
         else:  # INFO et autres
             format.setForeground(self.palette().color(QPalette.ColorRole.Text))
 
@@ -36,8 +44,9 @@ class ColoredLogViewer(QPlainTextEdit):
 
     def load_initial_logs(self, buffer):
         """Charge les logs du buffer dans l'interface."""
-        if buffer and hasattr(buffer,
-                              'logs'):  # Vérifie si le buffer existe et a des logs
+        if buffer and hasattr(
+            buffer, "logs"
+        ):  # Vérifie si le buffer existe et a des logs
             for message in buffer.logs:
                 self.append_log(message)
 

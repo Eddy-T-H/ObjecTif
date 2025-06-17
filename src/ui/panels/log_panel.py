@@ -1,17 +1,17 @@
 # src/ui/panels/log_panel.py
 """
-Panel de logs - Affichage des logs avec style unifié.
+Panel de logs - Affichage des logs avec qt-material.
 """
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from loguru import logger
 
-from src.ui.theme.design_system import DesignTokens
+# SUPPRESSION: from src.ui.theme.design_system import DesignTokens
 from src.ui.widgets.log_viewer import ColoredLogViewer, QtHandler
 
 
 class LogPanel(QWidget):
-    """Panel dédié à l'affichage des logs."""
+    """Panel dédié à l'affichage des logs avec qt-material."""
 
     def __init__(self, log_buffer=None, parent=None):
         super().__init__(parent)
@@ -19,25 +19,19 @@ class LogPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        """Configure l'interface du panel de logs."""
+        """Configure l'interface du panel de logs avec qt-material."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Créer le viewer de logs avec style unifié
+        # Créer le viewer de logs - SUPPRESSION de setStyleSheet
         self.log_viewer = ColoredLogViewer()
-        self.log_viewer.setStyleSheet(f"""
-            QPlainTextEdit {{
-                background-color: {DesignTokens.Colors.SURFACE};
-                color: {DesignTokens.Colors.TEXT_PRIMARY};
-                border: 1px solid {DesignTokens.Colors.BORDER};
-                border-radius: {DesignTokens.BorderRadius.MEDIUM}px;
-                font-family: "Consolas", "Monaco", monospace;
-                font-size: {DesignTokens.Typography.CAPTION}px;
-                padding: {DesignTokens.Spacing.SM}px;
-                selection-background-color: {DesignTokens.Colors.SELECTED};
-            }}
-        """)
+        # qt-material + classe CSS "log-viewer" appliquent automatiquement :
+        # - Police monospace (Consolas, Monaco)
+        # - Couleurs adaptées au thème
+        # - Bordures modernes
+        # - Padding cohérent
+        # - Adaptation clair/sombre automatique
 
         # Charge les logs initiaux si le buffer existe
         if self.log_buffer:

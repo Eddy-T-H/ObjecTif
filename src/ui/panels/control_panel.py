@@ -10,21 +10,24 @@ from PyQt6.QtWidgets import (
     QLabel,
     QGridLayout,
     QMessageBox,
+    QGroupBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QPushButton
+
 from pathlib import Path
 from loguru import logger
 from typing import Optional
 import subprocess
 
 from src.core.device import ADBManager
-from src.ui.theme.design_system import DesignTokens, ComponentFactory
 from src.ui.widgets.adb_status import ADBStatusWidget
 from src.ui.widgets.operation_popup import OperationPopup
 from src.utils.error_handler import UserFriendlyErrorHandler
 
+from src.ui.theme.theme_manager import set_widget_class
 
 class ControlPanel(QWidget):
     """Panel de contrôle pour les actions ADB et la prise de photos."""
@@ -45,15 +48,10 @@ class ControlPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        """Configure l'interface du panel de contrôle."""
+        """Configure l'interface du panel de contrôle avec qt-material."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-        )
-        layout.setSpacing(DesignTokens.Spacing.MD)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(12)
 
         # === STATUS ADB ===
         self.adb_status = ADBStatusWidget(self.adb_manager)
@@ -70,46 +68,45 @@ class ControlPanel(QWidget):
         layout.addStretch()
 
     def _setup_photo_section(self, layout):
-        """Configure la section des actions photo."""
-        photo_group = ComponentFactory.create_group_box("📸 Actions Photos", DesignTokens.Colors.INFO)
+        """Configure la section des actions photo avec qt-material."""
+        photo_group = QGroupBox("📸 Actions Photos")
+        # SUPPRESSION de setStyleSheet - qt-material gère automatiquement
         photo_layout = QVBoxLayout(photo_group)
-        photo_layout.setSpacing(DesignTokens.Spacing.SM)
-        photo_layout.setContentsMargins(
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.LG,
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.MD,
-        )
+        photo_layout.setSpacing(8)
+        photo_layout.setContentsMargins(12, 20, 12, 12)
 
-        # === BOUTON APPAREIL PHOTO - Style spécial caméra ===
-        self.btn_open_camera = ComponentFactory.create_camera_button(
-            "📱 Ouvrir appareil photo")
+        # === BOUTON APPAREIL PHOTO ===
+        self.btn_open_camera = QPushButton("📱 Ouvrir appareil photo")
         self.btn_open_camera.setEnabled(False)
         self.btn_open_camera.clicked.connect(self._open_camera)
+        # AJOUT de classe CSS pour style spécial
+        set_widget_class(self.btn_open_camera, "camera-button")
         photo_layout.addWidget(self.btn_open_camera)
 
         # === SÉPARATEUR ===
         separator = QLabel()
         separator.setFixedHeight(1)
-        separator.setStyleSheet(
-            f"background-color: {DesignTokens.Colors.BORDER}; margin: {DesignTokens.Spacing.SM}px 0;")
+        # SUPPRESSION du setStyleSheet - qt-material gère les séparateurs
         photo_layout.addWidget(separator)
 
-        # === BOUTONS PHOTO PRINCIPAUX - Taille ACTION (40px) ===
+        # === BOUTONS PHOTO PRINCIPAUX ===
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
-        grid_layout.setSpacing(DesignTokens.Spacing.SM)
+        grid_layout.setSpacing(8)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Boutons d'action - GROS et VISIBLES
-        self.btn_photo_ferme = ComponentFactory.create_action_button("🔒 Scellé\nFermé",
-                                                                     "photo_scelle")
-        self.btn_photo_content = ComponentFactory.create_action_button(
-            "🔍 Contenu\nScellé", "photo_contenu")
-        self.btn_photo_objet = ComponentFactory.create_action_button("📱 Objet\nd'Essai",
-                                                                     "photo_objet")
-        self.btn_photo_recond = ComponentFactory.create_action_button(
-            "📦 Reconditionnement", "photo_recond")
+        # Boutons d'action - SUPPRESSION des setStyleSheet
+        self.btn_photo_ferme = QPushButton("🔒 Scellé\nFermé")
+        set_widget_class(self.btn_photo_ferme, "photo-action")  # Classe CSS
+
+        self.btn_photo_content = QPushButton("🔍 Contenu\nScellé")
+        set_widget_class(self.btn_photo_content, "photo-action")
+
+        self.btn_photo_objet = QPushButton("📱 Objet\nd'Essai")
+        set_widget_class(self.btn_photo_objet, "photo-action")
+
+        self.btn_photo_recond = QPushButton("📦 Reconditionnement")
+        set_widget_class(self.btn_photo_recond, "photo-action")
 
         # Organisation en grille 2x2
         grid_layout.addWidget(self.btn_photo_ferme, 0, 0)
@@ -135,62 +132,24 @@ class ControlPanel(QWidget):
         layout.addWidget(photo_group)
 
     def _setup_info_section(self, layout):
-        """Configure la section d'informations contextuelles."""
-        info_group = ComponentFactory.create_group_box(
-            "ℹ️ Informations", DesignTokens.Colors.TEXT_SECONDARY
-        )
+        """Configure la section d'informations contextuelles avec qt-material."""
+        info_group = QGroupBox("ℹ️ Informations")
+        # SUPPRESSION de setStyleSheet - qt-material gère automatiquement
         info_layout = QVBoxLayout(info_group)
-        info_layout.setContentsMargins(
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.MD,
-            DesignTokens.Spacing.SM,
-            DesignTokens.Spacing.SM,
-        )
+        info_layout.setContentsMargins(10, 15, 10, 10)
 
-        # Labels d'information
+        # Labels d'information - SUPPRESSION des setStyleSheet
         self.info_scelle = QLabel("📁 Aucun scellé sélectionné")
         self.info_objet = QLabel("📱 Aucun objet sélectionné")
 
-        # Style par défaut (inactif)
-        self._apply_info_style_inactive(self.info_scelle)
-        self._apply_info_style_inactive(self.info_objet)
-
+        # qt-material applique automatiquement un style cohérent
         info_layout.addWidget(self.info_scelle)
         info_layout.addWidget(self.info_objet)
 
         layout.addWidget(info_group)
 
-    def _apply_info_style_active(self, label: QLabel):
-        """Applique le style actif aux labels d'information."""
-        label.setStyleSheet(
-            f"""
-            QLabel {{
-                color: {DesignTokens.Colors.TEXT_PRIMARY};
-                font-size: {DesignTokens.Typography.CAPTION}px;
-                padding: {DesignTokens.Spacing.XS}px;
-                background-color: {DesignTokens.Colors.SELECTED};
-                border-radius: {DesignTokens.BorderRadius.SMALL}px;
-                margin: {DesignTokens.Spacing.XS}px 0;
-                font-weight: {DesignTokens.Typography.MEDIUM};
-                border-left: 3px solid {DesignTokens.Colors.PRIMARY};
-            }}
-        """
-        )
-
-    def _apply_info_style_inactive(self, label: QLabel):
-        """Applique le style inactif aux labels d'information."""
-        label.setStyleSheet(
-            f"""
-            QLabel {{
-                color: {DesignTokens.Colors.TEXT_SECONDARY};
-                font-size: {DesignTokens.Typography.CAPTION}px;
-                padding: {DesignTokens.Spacing.XS}px;
-                background-color: {DesignTokens.Colors.SURFACE_VARIANT};
-                border-radius: {DesignTokens.BorderRadius.SMALL}px;
-                margin: {DesignTokens.Spacing.XS}px 0;
-            }}
-        """
-        )
+    # SUPPRESSION des méthodes _apply_info_style_active et _apply_info_style_inactive
+    # qt-material gère automatiquement les styles actif/inactif
 
     # === GESTIONNAIRES D'ÉVÉNEMENTS ===
 
@@ -375,16 +334,16 @@ class ControlPanel(QWidget):
             pass
 
     def _update_context_info(self):
-        """Met à jour les informations contextuelles affichées."""
+        """Met à jour les informations contextuelles affichées avec qt-material."""
         # Informations sur le scellé
         if self.current_scelle_path:
             scelle_name = self.current_scelle_path.name
             photo_count = self._count_scelle_photos()
             self.info_scelle.setText(f"📁 Scellé: {scelle_name} ({photo_count} photos)")
-            self._apply_info_style_active(self.info_scelle)
+            # qt-material gère automatiquement le style "actif"
         else:
             self.info_scelle.setText("📁 Aucun scellé sélectionné")
-            self._apply_info_style_inactive(self.info_scelle)
+            # qt-material gère automatiquement le style "inactif"
 
         # Informations sur l'objet
         if self.current_object_id and self.current_scelle_path:
@@ -395,10 +354,10 @@ class ControlPanel(QWidget):
             self.info_objet.setText(
                 f"🎯 Objet: {object_full_name} ({object_photo_count} photos)"
             )
-            self._apply_info_style_active(self.info_objet)
+            # qt-material gère automatiquement le style "actif"
         else:
             self.info_objet.setText("📱 Aucun objet sélectionné")
-            self._apply_info_style_inactive(self.info_objet)
+            # qt-material gère automatiquement le style "inactif"
 
     def _count_scelle_photos(self) -> int:
         """Compte les photos du scellé (hors objets)."""
@@ -440,3 +399,4 @@ class ControlPanel(QWidget):
         self._update_context_info()
 
         logger.debug(f"Contexte mis à jour - Scellé: {scelle_path}, Objet: {object_id}")
+
