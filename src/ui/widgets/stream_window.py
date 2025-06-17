@@ -1,4 +1,5 @@
 import sys
+import threading
 
 from PyQt6.QtCore import QProcess, pyqtSignal, QObject
 from pathlib import Path
@@ -26,13 +27,15 @@ class StreamWindow(QObject):
             adb_manager: Instance de ADBManager pour la communication avec l'appareil
             parent: Widget parent Qt pour la gestion du cycle de vie des processus
         """
-        QObject.__init__(self, parent)  # On utilise QObject.__init__() au lieu de super()
+        QObject.__init__(self, parent)
         try:
             self.adb_manager = adb_manager
             self.parent = parent
             self.scrcpy_process = None
-            self._process_starting = False  # Flag pour éviter les lancements multiples
             self._stopping_manually = False
+
+            # Verrou thread-safe pour éviter les lancements multiples
+            self._start_lock = threading.Lock()
 
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation de StreamWindow: {e}")
@@ -40,17 +43,18 @@ class StreamWindow(QObject):
 
     def start_stream(self):
         """
-        Démarre le streaming dans une fenêtre scrcpy.
+		Démarre le streaming dans une fenêtre scrcpy.
+		Thread-safe pour éviter les lancements multiples.
 
-        Returns:
-            bool: True si le démarrage réussit, False sinon
-        """
-        if self._process_starting:
-            logger.warning("Démarrage déjà en cours, ignoré")
+		Returns:
+			bool: True si le démarrage réussit, False sinon
+		"""
+        # Acquisition non-bloquante du verrou
+        if not self._start_lock.acquire(blocking=False):
+            logger.warning("Démarrage déjà en cours, requête ignorée")
             return False
 
         try:
-            self._process_starting = True
             logger.debug("====== Démarrage stream ======")
 
             # Vérification de la connexion ADB
@@ -111,7 +115,36 @@ class StreamWindow(QObject):
             return False
 
         finally:
-            self._process_starting = False
+            # Libération du verrou dans tous les cas
+            self._start_lock.release()
+
+    def stop_stream(self):
+        """
+		Arrête proprement le streaming en cours.
+		Thread-safe.
+		"""
+        if self.scrcpy_process is not None:
+            try:
+                logger.debug("Arrêt du stream demandé")
+                self._stopping_manually = True
+
+                # Garde une référence locale pour le nettoyage
+                process = self.scrcpy_process
+                self.scrcpy_process = None
+
+                process.terminate()
+                if not process.waitForFinished(3000):
+                    logger.warning("Le processus ne répond pas, arrêt forcé")
+                    process.kill()
+                    process.waitForFinished(1000)
+
+                process.deleteLater()
+                logger.info("Streaming arrêté avec succès")
+
+            except Exception as e:
+                logger.error(f"Erreur lors de l'arrêt du stream: {e}")
+            finally:
+                self._stopping_manually = False
 
     def _on_process_finished(self, exit_code, exit_status):
         """
@@ -164,42 +197,7 @@ class StreamWindow(QObject):
         except Exception as e:
             logger.error(f"Erreur lors du traitement d'erreur: {e}")
 
-    def stop_stream(self):
-        """
-        Arrête proprement le streaming en cours.
-
-        Cette méthode s'assure que le processus scrcpy est arrêté correctement
-        en suivant une séquence précise :
-        1. Vérifie si un processus existe
-        2. Tente un arrêt en douceur (terminate)
-        3. Force l'arrêt si nécessaire (kill)
-        4. Nettoie les ressources Qt
-        """
-        if self.scrcpy_process is not None:
-            try:
-                logger.debug("Arrêt du stream demandé")
-                # Indique que l'arrêt est volontaire
-                self._stopping_manually = True
-
-                # Garde une référence locale pour le nettoyage
-                process = self.scrcpy_process
-                self.scrcpy_process = None
-
-                process.terminate()
-                if not process.waitForFinished(3000):
-                    logger.warning("Le processus ne répond pas, arrêt forcé")
-                    process.kill()
-                    process.waitForFinished(1000)
-
-                process.deleteLater()
-                logger.info("Streaming arrêté avec succès")
-
-            except Exception as e:
-                logger.error(f"Erreur lors de l'arrêt du stream: {e}")
-            finally:
-                self._stopping_manually = False
-
-    def _get_scrcpy_path(self):
+     def _get_scrcpy_path(self):
         """
         Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
         """
@@ -223,42 +221,3 @@ class StreamWindow(QObject):
         except Exception as e:
             logger.error(f"Erreur lors de la recherche de scrcpy: {e}")
             raise
-
-    # def _get_scrcpy_path(self):
-    #     """
-    #     Détermine le chemin de l'exécutable scrcpy de manière sécurisée.
-    #
-    #     Returns:
-    #         str: Chemin vers l'exécutable scrcpy
-    #
-    #     Raises:
-    #         FileNotFoundError: Si scrcpy n'est pas trouvé
-    #     """
-    #     try:
-    #         current_dir = Path(__file__).resolve()
-    #         root_found = False
-    #
-    #         # Recherche du dossier racine avec protection contre les boucles infinies
-    #         iteration_limit = 50
-    #         iteration_count = 0
-    #
-    #         while current_dir.name != "ObjecTif" and current_dir.parent != current_dir:
-    #             current_dir = current_dir.parent
-    #             iteration_count += 1
-    #             if iteration_count >= iteration_limit:
-    #                 raise FileNotFoundError(
-    #                     "Limite de recherche du dossier racine atteinte")
-    #
-    #         if current_dir.name != "ObjecTif":
-    #             raise FileNotFoundError("Dossier racine ObjecTif non trouvé")
-    #
-    #         scrcpy_path = current_dir / "scrcpy" / "scrcpy.exe"
-    #
-    #         if not scrcpy_path.exists():
-    #             raise FileNotFoundError(f"scrcpy.exe non trouvé à {scrcpy_path}")
-    #
-    #         return str(scrcpy_path)
-    #
-    #     except Exception as e:
-    #         logger.error(f"Erreur lors de la recherche de scrcpy: {e}")
-    #         raise
