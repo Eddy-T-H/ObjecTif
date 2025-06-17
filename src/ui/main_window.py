@@ -27,6 +27,7 @@ from .widgets.adb_status import ADBStatusWidget
 from .widgets.log_viewer import ColoredLogViewer, QtHandler
 from .widgets.photo_list import PhotoListWidget
 from .widgets.operation_popup import OperationPopup
+from src.utils.error_handler import UserFriendlyErrorHandler
 
 from ..core.device import ADBManager
 from ..core.evidence.base import EvidenceItem
@@ -437,11 +438,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter)
         return group
 
-
     def _create_new_affaire(self):
         """
         Ouvre le dialogue de création d'une nouvelle affaire et crée le dossier correspondant.
-        Vérifie que le workspace est configuré avant de permettre la création.
         """
         if not self.config.paths.workspace_path:
             QMessageBox.warning(self, "Erreur",
@@ -469,20 +468,25 @@ class MainWindow(QMainWindow):
                     self._on_case_selected(index)
 
                 except FileExistsError:
-                    QMessageBox.warning(self, "Erreur",
-                                        f"Un dossier portant le numéro {numero} existe déjà.")
+                    QMessageBox.warning(self, "Dossier existant",
+                                        f"Un dossier portant le nom '{numero}' existe déjà.\n\n"
+                                        f"Veuillez choisir un nom différent.")
+                except PermissionError as e:
+                    title, message = UserFriendlyErrorHandler.handle_file_error(e,
+                                                                                str(affaire_path))
+                    QMessageBox.critical(self, title, message)
                 except Exception as e:
-                    QMessageBox.critical(self, "Erreur",
-                                         f"Erreur lors de la création du dossier : {str(e)}")
+                    title, message = UserFriendlyErrorHandler.handle_file_error(e,
+                                                                                str(affaire_path))
+                    QMessageBox.critical(self, title, message)
 
     def _create_new_scelle(self):
         """
-        Crée un nouveau scellé dans l'affaire actuelle.
-        Crée un dossier pour le scellé dans le répertoire de l'affaire.
+        Crée un nouveau scellé dans l'affaire actuelle avec gestion d'erreur améliorée.
         """
         if not self.scelle_manager:
-            QMessageBox.warning(self, "Erreur",
-                                "Veuillez d'abord sélectionner une affaire.")
+            QMessageBox.warning(self, "Aucune affaire sélectionnée",
+                                "Veuillez d'abord sélectionner une affaire dans la liste.")
             return
 
         if not self.current_case_path:
@@ -501,20 +505,13 @@ class MainWindow(QMainWindow):
                 # Crée le dossier du scellé
                 scelle_path = self.current_case_path / numero
                 if scelle_path.exists():
-                    raise FileExistsError(f"Le scellé {numero} existe déjà")
+                    QMessageBox.warning(self, "Scellé existant",
+                                        f"Un scellé portant le nom '{numero}' existe déjà dans cette affaire.\n\n"
+                                        f"Veuillez choisir un nom différent.")
+                    return
 
                 # Crée le dossier
                 scelle_path.mkdir(parents=True)
-
-                # Force le rafraîchissement du modèle pour le dossier parent
-                parent_path = str(self.current_case_path)
-                self.cases_model.setRootPath("")  # Reset le chemin racine
-                self.cases_model.setRootPath(
-                str(self.config.paths.workspace_path))  # Conversion en str
-
-                # Réexpand le dossier parent pour montrer le nouveau contenu
-                parent_index = self.cases_model.index(parent_path)
-                self.cases_tree.expand(parent_index)
 
                 # Met à jour la liste des scellés
                 self._load_scelles(self.current_case_path)
@@ -523,22 +520,16 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"Scellé {numero} créé")
                 logger.info(f"Nouveau scellé créé : {numero}")
 
-
             except ValueError as e:
-                logger.error(f"Erreur de validation lors de la création du scellé: {e}")
-                QMessageBox.warning(self, "Erreur de validation", str(e))
-            except FileExistsError as e:
-                logger.error(f"Erreur: le scellé existe déjà: {e}")
-                QMessageBox.warning(self, "Erreur", "Ce scellé existe déjà")
+                QMessageBox.warning(self, "Données invalides", str(e))
             except PermissionError as e:
-                logger.error(
-                f"Erreur de permissions lors de la création du dossier: {e}")
-                QMessageBox.critical(self, "Erreur",
-                                 "Impossible de créer le dossier (erreur de permissions)")
+                title, message = UserFriendlyErrorHandler.handle_file_error(e,
+                                                                            str(scelle_path))
+                QMessageBox.critical(self, title, message)
             except Exception as e:
-                logger.error(f"Erreur inattendue lors de la création du scellé: {e}")
-                QMessageBox.critical(self, "Erreur",
-                                     f"Une erreur inattendue s'est produite: {str(e)}")
+                title, message = UserFriendlyErrorHandler.handle_file_error(e,
+                                                                            str(scelle_path))
+                QMessageBox.critical(self, title, message)
 
     @pyqtSlot(QModelIndex)
     def _on_scelle_selected(self, index):
@@ -919,13 +910,35 @@ class MainWindow(QMainWindow):
                 # Efface le message après 3 secondes
                 QTimer.singleShot(3000, lambda: self.statusBar().showMessage(""))
             else:
-                self.statusBar().showMessage("Erreur lors de la prise de photo")
+                QMessageBox.warning(self, "Échec de la photo",
+                                    "La photo n'a pas pu être prise ou transférée.\n\n"
+                                    "Solutions :\n"
+                                    "• Vérifiez que l'appareil photo fonctionne\n"
+                                    "• Prenez une photo manuellement puis réessayez\n"
+                                    "• Vérifiez la connexion de l'appareil")
+
+
+        except subprocess.TimeoutExpired:
+
+            title, message = UserFriendlyErrorHandler.handle_adb_error(
+
+                Exception("timeout"), "la prise de photo"
+
+            )
+
+            QMessageBox.warning(self, title, message)
+
 
         except Exception as e:
-            logger.error(f"Erreur lors de la prise de photo : {e}")
-            self.statusBar().showMessage("Erreur lors de la prise de photo")
+
+            title, message = UserFriendlyErrorHandler.handle_adb_error(e,"la prise de photo")
+
+            QMessageBox.warning(self, title, message)
+
         finally:
             # Réactive toujours les boutons à la fin
+            if 'popup' in locals():
+                popup.close_popup()
             self._update_photo_buttons()
 
     def _start_photo_operation(self, photo_type: str):

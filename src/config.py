@@ -31,7 +31,7 @@ class AppConfig(BaseModel):
 
     # Métadonnées de l'application
     app_name: str = "ObjecTif"
-    app_version: str = "1.0.0"
+    app_version: str = "2"
 
     # Mode de fonctionnement
     debug_mode: bool = Field(
