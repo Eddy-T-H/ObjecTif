@@ -184,40 +184,6 @@ class ADBManager:
         except Exception:
             return False
 
-    def _start_adb_server(self):
-        """Démarre le serveur ADB en essayant différentes versions."""
-        tried_paths = []
-
-        for adb_path in self._get_adb_paths():
-            try:
-                logger.debug(f"Tentative avec ADB : {adb_path}")
-                if not self._test_adb(adb_path):
-                    tried_paths.append(f"{adb_path} (test échoué)")
-                    continue
-
-                # Stocke le chemin ADB fonctionnel pour une utilisation ultérieure
-                self.adb_command = adb_path
-
-                # Démarre le serveur avec l'ADB trouvé
-                subprocess.run(
-                    f'"{adb_path}" start-server',
-                    shell=True,
-                    capture_output=True,
-                    text=True
-                )
-                logger.info(f"Serveur ADB démarré avec succès via {adb_path}")
-                return True
-
-            except Exception as e:
-                tried_paths.append(f"{adb_path} (erreur: {str(e)})")
-                continue
-
-        # Si on arrive ici, aucun ADB n'a fonctionné
-        error_msg = "Aucune version d'ADB n'a fonctionné.\nTentatives :\n" + "\n".join(
-            tried_paths)
-        logger.error(error_msg)
-        raise RuntimeError(error_msg)
-
     def get_device_info(self) -> Optional[Dict[str, str]]:
         """Récupère les informations sur l'appareil connecté."""
         if not self.is_connected():
@@ -263,44 +229,6 @@ class ADBManager:
         finally:
             self.device = None
             self.current_device = None
-
-    def connect(self) -> bool:
-        """Tente de se connecter à un appareil USB."""
-        try:
-            # Redémarre le serveur ADB
-            self._start_adb_server()
-
-            if not hasattr(self, 'adb_command'):
-                logger.error("ADB n'est pas initialisé correctement")
-                return False
-
-            result = subprocess.run(
-                f'"{self.adb_command}" devices',
-                shell=True,
-                capture_output=True,
-                text=True
-            )
-
-            logger.debug(f"Résultat de adb devices: {result.stdout}")
-
-            devices = []
-            for line in result.stdout.splitlines()[1:]:
-                if '\tdevice' in line:
-                    device_id = line.split('\t')[0]
-                    devices.append(device_id)
-                    logger.debug(f"Appareil trouvé: {device_id}")
-
-            if devices:
-                self.current_device = devices[0]
-                logger.info(f"Connecté à l'appareil: {self.current_device}")
-                return True
-
-            logger.warning("Aucun appareil trouvé")
-            return False
-
-        except Exception as e:
-            logger.error(f"Erreur de connexion ADB: {e}")
-            return False
 
     def _list_dcim_photos(self) -> list[str]:
         """Liste toutes les photos dans les dossiers possibles de l'appareil."""
