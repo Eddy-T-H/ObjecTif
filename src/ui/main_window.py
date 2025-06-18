@@ -110,6 +110,10 @@ class MainWindow(QMainWindow):
         self.control_panel.connection_changed.connect(self._on_connection_changed)
         self.control_panel.photo_taken.connect(self._on_photo_taken)
 
+        # AJOUTER cette ligne :
+        self.navigation_panel.multiple_scelles_created.connect(
+            self._on_multiple_scelles_created)
+
         # Signaux de suppression de photos
         self.navigation_panel.photo_deleted.connect(self._on_photo_deleted)
 
@@ -231,3 +235,13 @@ class MainWindow(QMainWindow):
         title, message = UserFriendlyErrorHandler.handle_adb_error(exception, operation)
         from PyQt6.QtWidgets import QMessageBox
         QMessageBox.warning(self, title, message)
+
+    @pyqtSlot(int)
+    def _on_multiple_scelles_created(self, count: int):
+        """Gère la création multiple de scellés."""
+        logger.info(f"Signal de création multiple reçu : {count} scellés créés")
+
+        if count == 1:
+            self.statusBar().showMessage("🔒 1 scellé créé", 5000)
+        else:
+            self.statusBar().showMessage(f"🔒 {count} scellés créés", 5000)

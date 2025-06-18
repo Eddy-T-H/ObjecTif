@@ -15,17 +15,18 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
     QGroupBox,
-    QPushButton, QInputDialog, QLineEdit,
+    QPushButton, QInputDialog, QLineEdit, QApplication,
 )
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal, QTimer
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
 from pathlib import Path
 from loguru import logger
 from typing import Optional
-
 from src.config import AppConfig
 from src.ui.dialogs.create_affaire_dialog import CreateAffaireDialog
+from src.ui.dialogs.create_multiple_scelles_dialog import CreateMultipleScellesDialog
 from src.ui.dialogs.create_scelle_dialog import CreateScelleDialog
+from src.ui.widgets.operation_popup import OperationPopup
 from src.ui.widgets.photo_list import PhotoListWidget
 from src.core.device import ADBManager
 from src.core.evidence.scelle import Scelle
@@ -42,6 +43,7 @@ class NavigationPanel(QWidget):
     scelle_selected = pyqtSignal(Path)
     object_selected = pyqtSignal(str)
     photo_deleted = pyqtSignal(str)
+    multiple_scelles_created = pyqtSignal(int)  # nombre de scellés créés
 
     def __init__(self, config: AppConfig, adb_manager: ADBManager, parent=None):
         super().__init__(parent)
@@ -127,12 +129,13 @@ class NavigationPanel(QWidget):
         btn_layout.setSpacing(4)
 
         # Bouton pour créer
-        add_btn = QPushButton("Nouveau")
+        add_btn = QPushButton("➕ Nouveau")
         add_btn.clicked.connect(self._create_new_case)
+        add_btn.setToolTip("Créer un nouveau dossier")
         btn_layout.addWidget(add_btn)
 
         # Bouton explorateur
-        self.explorer_btn = QPushButton("Ouvrir dans l'explorateur")
+        self.explorer_btn = QPushButton("📂 Explorer")
         self.explorer_btn.setToolTip("Ouvrir dans l'explorateur")
         self.explorer_btn.setEnabled(False)
         self.explorer_btn.clicked.connect(self._open_explorer)
@@ -162,12 +165,13 @@ class NavigationPanel(QWidget):
         layout.setContentsMargins(8, 12, 8, 8)
         layout.setSpacing(4)
 
-        # Boutons d'action
+        # PREMIÈRE ligne de boutons (existante)
         scelle_btn_layout = QHBoxLayout()
         scelle_btn_layout.setSpacing(4)
 
-        add_scelle_btn = QPushButton("Ajouter un scellé")
+        add_scelle_btn = QPushButton("➕ Ajouter")
         add_scelle_btn.clicked.connect(self._create_new_scelle)
+        add_scelle_btn.setToolTip("Ajouter un nouveau scellé")
         scelle_btn_layout.addWidget(add_scelle_btn)
 
         self.delete_scelle_btn = QPushButton("🗑️")
@@ -179,6 +183,27 @@ class NavigationPanel(QWidget):
 
         layout.addLayout(scelle_btn_layout)
 
+        # NOUVELLE deuxième ligne de boutons À AJOUTER :
+        multiple_btn_layout = QHBoxLayout()
+        multiple_btn_layout.setSpacing(4)
+
+        # Bouton création multiple
+        self.btn_create_multiple = QPushButton("➕➕ Créer Plusieurs")
+        self.btn_create_multiple.setEnabled(False)  # Activé quand dossier sélectionné
+        self.btn_create_multiple.clicked.connect(self._create_multiple_scelles)
+        self.btn_create_multiple.setToolTip("Créer plusieurs scellés en une fois")
+        multiple_btn_layout.addWidget(self.btn_create_multiple)
+
+        # Bouton explorateur compact
+        self.btn_open_explorer = QPushButton("📂")
+        self.btn_open_explorer.setEnabled(False)
+        self.btn_open_explorer.clicked.connect(self._open_current_folder)
+        self.btn_open_explorer.setToolTip("Ouvrir le dossier dans l'explorateur")
+        self.btn_open_explorer.setFixedWidth(35)
+        multiple_btn_layout.addWidget(self.btn_open_explorer)
+
+        layout.addLayout(multiple_btn_layout)
+
         # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
@@ -187,7 +212,7 @@ class NavigationPanel(QWidget):
         self.scelles_tree = QTreeView()
         self.scelles_tree.setMinimumWidth(100)
         self.scelles_model = QStandardItemModel()
-        self.scelles_model.setHorizontalHeaderLabels(["Scellés"])
+        self.scelles_model.setHorizontalHeaderLabels(["🔒 Scellés"])
         self.scelles_tree.setModel(self.scelles_model)
 
         # Configuration pour un affichage plus aéré
@@ -231,11 +256,11 @@ class NavigationPanel(QWidget):
         layout.setContentsMargins(8, 12, 8, 8)
         layout.setSpacing(4)
 
-        # Bouton de navigation pour créer des objets - SUPPRESSION du ComponentFactory
-        self.add_object_btn = QPushButton("Ajouter un objet")
+        # Bouton de navigation pour créer des objets
+        self.add_object_btn = QPushButton("➕ Ajouter un objet")
         self.add_object_btn.clicked.connect(self._create_new_object)
         self.add_object_btn.setEnabled(False)
-        # qt-material applique automatiquement un style moderne
+        self.add_object_btn.setToolTip("Ajouter un nouvel objet d'essai")
         layout.addWidget(self.add_object_btn)
 
         # Splitter horizontal
@@ -246,7 +271,7 @@ class NavigationPanel(QWidget):
         self.objects_list = QTreeWidget()
         # qt-material applique automatiquement un style moderne aux TreeWidget
         self.objects_list.setMinimumWidth(100)
-        self.objects_list.setHeaderLabels(["Objets"])
+        self.objects_list.setHeaderLabels(["📱 Objets"])
         self.objects_list.itemClicked.connect(self._on_object_clicked)
         splitter.addWidget(self.objects_list)
 
@@ -270,6 +295,8 @@ class NavigationPanel(QWidget):
 
             # Active les boutons
             self.explorer_btn.setEnabled(True)
+            self.btn_create_multiple.setEnabled(True)
+            self.btn_open_explorer.setEnabled(True)
 
             # Désactive les boutons de scellé
             self.delete_scelle_btn.setEnabled(False)
@@ -761,3 +788,129 @@ class NavigationPanel(QWidget):
                 logger.debug(
                     f"Sélection restaurée pour: {self.current_scelle_path.name}")
                 break
+
+    def _create_multiple_scelles(self):
+        """Ouvre le dialogue de création multiple de scellés."""
+        if not self.current_case_path:
+            QMessageBox.warning(
+                self, "❌ Erreur",
+                "Sélectionnez d'abord un dossier dans la liste des dossiers."
+            )
+            return
+
+        dialog = CreateMultipleScellesDialog(self)
+        if dialog.exec():
+            scelle_names = dialog.get_scelle_names()
+            if scelle_names:
+                self._perform_multiple_creation(scelle_names)
+
+    def _perform_multiple_creation(self, scelle_names: list[str]):
+        """Effectue la création multiple de scellés."""
+        if not self.current_case_path:
+            return
+
+        logger.info(f"🔒 Début création multiple de {len(scelle_names)} scellés")
+
+        # Popup de progression
+        popup = OperationPopup(self)
+        popup.setWindowTitle("🔒 Création de Scellés")
+        popup.show()
+        QApplication.processEvents()
+
+        created_count = 0
+        skipped_count = 0
+        errors = []
+
+        try:
+            for i, scelle_name in enumerate(scelle_names, 1):
+                try:
+                    popup.update_message(
+                        f"Création {i}/{len(scelle_names)}: {scelle_name}")
+                    QApplication.processEvents()
+
+                    scelle_path = self.current_case_path / scelle_name
+
+                    if scelle_path.exists():
+                        skipped_count += 1
+                        logger.warning(f"Scellé '{scelle_name}' existe déjà - ignoré")
+                        continue
+
+                    scelle_path.mkdir(parents=True, exist_ok=False)
+                    created_count += 1
+                    logger.info(f"✅ Scellé créé : {scelle_name}")
+
+                except Exception as e:
+                    error_msg = f"Erreur avec '{scelle_name}': {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+
+        finally:
+            popup.close_popup()
+
+        # Rapport final
+        self._show_creation_report(created_count, skipped_count, errors,
+                                   len(scelle_names))
+
+        # Rafraîchissement automatique
+        if created_count > 0:
+            self._load_scelles(self.current_case_path)
+            self.multiple_scelles_created.emit(created_count)
+
+    def _show_creation_report(self, created: int, skipped: int, errors: list,
+                              total: int):
+        """Affiche un rapport détaillé de la création."""
+        if created == total:
+            title = "✅ Création Réussie"
+            icon = "✅"
+        elif created > 0:
+            title = "⚠️ Création Partielle"
+            icon = "⚠️"
+        else:
+            title = "❌ Échec de Création"
+            icon = "❌"
+
+        summary = f"{icon} <b>Résumé:</b><br>"
+        summary += f"• ✅ <b>Créés:</b> {created}<br>"
+        if skipped > 0:
+            summary += f"• 🔄 <b>Ignorés (existants):</b> {skipped}<br>"
+        if errors:
+            summary += f"• ❌ <b>Erreurs:</b> {len(errors)}<br>"
+        summary += f"• 📊 <b>Total:</b> {total}"
+
+        if errors:
+            error_details = "<br><br>🔍 <b>Erreurs:</b><br>"
+            for error in errors[:5]:  # Limite à 5
+                error_details += f"• {error}<br>"
+            if len(errors) > 5:
+                error_details += f"• ... et {len(errors) - 5} autres"
+            summary += error_details
+
+        if created > 0:
+            QMessageBox.information(self, title, summary)
+        else:
+            QMessageBox.warning(self, title, summary)
+
+    def _open_current_folder(self):
+        """Ouvre le dossier actuel dans l'explorateur."""
+        if not self.current_case_path or not self.current_case_path.exists():
+            QMessageBox.warning(self, "❌ Erreur", "Aucun dossier sélectionné.")
+            return
+
+        try:
+            import os
+            import platform
+            import subprocess
+
+            if platform.system() == "Windows":
+                os.startfile(str(self.current_case_path))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", str(self.current_case_path)])
+            else:  # Linux
+                subprocess.run(["xdg-open", str(self.current_case_path)])
+
+            logger.info(f"📂 Explorateur ouvert : {self.current_case_path}")
+
+        except Exception as e:
+            logger.error(f"Erreur explorateur: {e}")
+            QMessageBox.warning(self, "❌ Erreur",
+                                f"Impossible d'ouvrir l'explorateur.\n{e}")

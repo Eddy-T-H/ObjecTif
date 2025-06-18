@@ -483,7 +483,7 @@ class ControlPanel(QWidget):
 
         # Créer le viewer de logs
         self.log_viewer = ColoredLogViewer()
-        self.log_viewer.setMinimumHeight(100)
+        # self.log_viewer.setMinimumHeight(500)
 
         # Charge les logs initiaux si le buffer existe
         if self.log_buffer:
@@ -495,10 +495,10 @@ class ControlPanel(QWidget):
             format="{time:HH:mm:ss} | {level: <8} | {message}"
         )
 
-        logs_layout.addWidget(self.log_viewer)
+        logs_layout.addWidget(self.log_viewer,1)
 
 
-        layout.addWidget(logs_group)
+        layout.addWidget(logs_group,1)
 
     #  méthode publique pour accéder aux logs
     def clear_logs(self):

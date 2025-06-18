@@ -11,7 +11,6 @@ class ColoredLogViewer(QPlainTextEdit):
     def __init__(self):
         super().__init__()
         self.setReadOnly(True)
-        self.setMaximumHeight(200)
         self.setMinimumHeight(100)
         self.document().setMaximumBlockCount(5000)  # Limite le nombre de lignes
 
