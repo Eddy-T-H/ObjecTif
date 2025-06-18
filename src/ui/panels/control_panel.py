@@ -360,13 +360,17 @@ class ControlPanel(QWidget):
             and self.current_object_id is not None
         )
 
-    def _show_status_message(self, message: str):
-        """Affiche un message dans la barre de statut de la fenêtre parent."""
-        try:
-            if hasattr(self.parent(), "statusBar"):
-                self.parent().statusBar().showMessage(message)
-        except:
-            pass
+    def _show_status_message(self, message: str, duration: int = 3000):
+        """Version améliorée avec icônes cohérentes"""
+        if "succès" in message.lower() or "réussi" in message.lower():
+            message = f"✅ {message}"
+        elif "erreur" in message.lower():
+            message = f"❌ {message}"
+        elif "information" in message.lower():
+            message = f"ℹ️ {message}"
+
+        if hasattr(self.parent(), "statusBar"):
+            self.parent().statusBar().showMessage(message, duration)
 
     def _update_context_info(self):
         """Met à jour les informations contextuelles affichées."""

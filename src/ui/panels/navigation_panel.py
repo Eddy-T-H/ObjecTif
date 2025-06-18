@@ -501,11 +501,11 @@ class NavigationPanel(QWidget):
             contenu_icon = "🔍✅" if analysis["contenu"] else "🔍❌"
             recond_icon = "📦✅" if analysis["reconditionne"] else "📦❌"
 
-            # Texte des objets
+            # MODIFICATION ICI : Texte des objets avec cohérence
             if analysis["objects"]:
                 objects_text = f"📱{','.join(analysis['objects'])}"
             else:
-                objects_text = "📱∅"
+                objects_text = "📱❌"
 
             # Construction du texte sur DEUX LIGNES avec \n
             line1 = f"▸ {scelle_path.name}"
@@ -518,7 +518,7 @@ class NavigationPanel(QWidget):
             # IMPORTANT: Stocke le chemin COMPLET dans les données
             scelle_item.setData(str(scelle_path))
 
-            # Tooltip détaillé
+            # Tooltip détaillé avec cohérence aussi
             tooltip = (
                 f"Scellé: {scelle_path.name}\n"
                 f"Photos totales: {analysis['total']}\n\n"
@@ -532,7 +532,7 @@ class NavigationPanel(QWidget):
             if analysis["objects"]:
                 tooltip += "\n".join([f"📱 Objet {obj}" for obj in analysis["objects"]])
             else:
-                tooltip += "Aucun objet d'essai"
+                tooltip += "❌ Aucun objet d'essai"
 
             scelle_item.setToolTip(tooltip)
 
