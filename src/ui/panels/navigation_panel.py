@@ -59,10 +59,10 @@ class NavigationPanel(QWidget):
     def _setup_ui(self):
         """Configure l'interface du panel de navigation avec qt-material."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
-        # === SECTION WORKSPACE ===
+        # === SECTION WORKSPACE AVEC GROUPBOX ===
         self._setup_workspace_section(layout)
 
         # === SPLITTER POUR LES TROIS ZONES ===
@@ -84,36 +84,36 @@ class NavigationPanel(QWidget):
         objects_group.setMinimumHeight(100)
         splitter.addWidget(objects_group)
 
+        # Répartition équilibrée
         splitter.setSizes([200, 200, 200])
         layout.addWidget(splitter)
 
     def _setup_workspace_section(self, layout):
-        """Configure la section de sélection du workspace avec qt-material."""
-        workspace_widget = QWidget()
-        workspace_layout = QHBoxLayout(workspace_widget)
-        workspace_layout.setContentsMargins(0, 0, 0, 0)
-        workspace_layout.setSpacing(4)
+        """Configure la section de sélection du workspace avec GroupBox."""
+        # Utilise un GroupBox comme les autres sections
+        workspace_group = QGroupBox("📂 Espace de Travail")
+        workspace_layout = QHBoxLayout(workspace_group)
+        workspace_layout.setContentsMargins(12, 20, 12, 12)
+        workspace_layout.setSpacing(8)
 
-        # Label titre - SUPPRESSION du setStyleSheet
-        workspace_label_title = QLabel("Dossier de travail :")
-        # qt-material gère automatiquement le style
-
-        # Label du chemin actuel - SUPPRESSION du setStyleSheet
+        # Label du chemin actuel
         self.workspace_label = QLabel("Non configuré")
-        # qt-material gère automatiquement le style
-
-        # Bouton compact pour changer le workspace - SUPPRESSION du ComponentFactory
-        change_workspace_btn = QPushButton("...")
-        change_workspace_btn.setToolTip("Changer le dossier de travail")
-        change_workspace_btn.setFixedWidth(30)
-        change_workspace_btn.clicked.connect(self._select_workspace)
-        # qt-material applique automatiquement un style moderne
-
-        workspace_layout.addWidget(workspace_label_title)
+        self.workspace_label.setWordWrap(
+            True)  # Permet le retour à la ligne si chemin long
         workspace_layout.addWidget(self.workspace_label, stretch=1)
+
+        # Bouton pour changer le workspace
+        change_workspace_btn = QPushButton("📁 Changer")
+        change_workspace_btn.setToolTip("Changer le dossier de travail")
+        change_workspace_btn.setFixedWidth(80)  # Un peu plus large pour le texte
+        change_workspace_btn.setFixedHeight(28)  # Cohérent avec les autres boutons
+        change_workspace_btn.clicked.connect(self._select_workspace)
         workspace_layout.addWidget(change_workspace_btn)
 
-        layout.addWidget(workspace_widget)
+        # Limite la hauteur pour éviter l'étirement
+        workspace_group.setMaximumHeight(70)
+
+        layout.addWidget(workspace_group)
 
     def _setup_cases_section(self):
         """Configure la section des affaires avec possibilité de suppression."""
@@ -156,7 +156,7 @@ class NavigationPanel(QWidget):
         return group
 
     def _setup_scelles_section(self):
-        """Configure la section des scellés avec possibilité de suppression."""
+        """Configure la section des scellés avec TreeView enrichi (approche sécurisée)."""
         group = QGroupBox("🔒 Scellés")
         layout = QVBoxLayout(group)
         layout.setContentsMargins(8, 12, 8, 8)
@@ -166,7 +166,6 @@ class NavigationPanel(QWidget):
         scelle_btn_layout = QHBoxLayout()
         scelle_btn_layout.setSpacing(4)
 
-        # Bouton ajouter
         add_scelle_btn = QPushButton("Ajouter un scellé")
         add_scelle_btn.clicked.connect(self._create_new_scelle)
         scelle_btn_layout.addWidget(add_scelle_btn)
@@ -184,12 +183,35 @@ class NavigationPanel(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Arborescence des scellés
+        # === TREEVIEW ENRICHI (SÉCURISÉ) ===
         self.scelles_tree = QTreeView()
         self.scelles_tree.setMinimumWidth(100)
         self.scelles_model = QStandardItemModel()
         self.scelles_model.setHorizontalHeaderLabels(["Scellés"])
         self.scelles_tree.setModel(self.scelles_model)
+
+        # Configuration pour un affichage plus aéré
+        self.scelles_tree.setRootIsDecorated(False)  # Pas d'indicateurs d'arbre
+        self.scelles_tree.setAlternatingRowColors(True)
+        self.scelles_tree.setStyleSheet("""
+            QTreeView {
+                font-size: 12px;
+                show-decoration-selected: 1;
+            }
+            QTreeView::item {
+                height: 45px;  /* Plus de hauteur pour l'effet aéré */
+                padding: 5px;
+                border-bottom: 1px solid #eee;
+            }
+            QTreeView::item:selected {
+                background-color: #d1ecf1;
+                color: #0c5460;
+            }
+            QTreeView::item:hover {
+                background-color: #e9ecef;
+            }
+        """)
+
         self.scelles_tree.clicked.connect(self._on_scelle_clicked)
         splitter.addWidget(self.scelles_tree)
 
@@ -198,7 +220,7 @@ class NavigationPanel(QWidget):
         self.scelle_photos.photo_deleted.connect(self.photo_deleted.emit)
         splitter.addWidget(self.scelle_photos)
 
-        splitter.setSizes([100, 100])
+        splitter.setSizes([200, 100])
         layout.addWidget(splitter)
         return group
 
@@ -267,39 +289,51 @@ class NavigationPanel(QWidget):
             self.case_selected.emit(path)
 
     def _on_scelle_clicked(self, index: QModelIndex):
-        """Gère le clic sur un scellé avec activation du bouton suppression."""
+        """Gère le clic sur un scellé avec récupération du bon chemin."""
         item = self.scelles_model.itemFromIndex(index)
         if not item:
             return
 
-        scelle_name = item.text()
-        scelle = self.scelle_manager.get_item(scelle_name)
+        # Récupère le chemin stocké dans les données de l'item (pas le texte affiché)
+        scelle_path_str = item.data()
+        if not scelle_path_str:
+            logger.warning("Aucun chemin stocké dans l'item")
+            return
 
-        if scelle:
-            self.current_scelle_path = scelle.path
+        scelle_path = Path(scelle_path_str)
 
-            # Active le bouton de suppression de scellé
-            self.delete_scelle_btn.setEnabled(True)  # NOUVEAU
+        # Vérifie que le chemin existe
+        if not scelle_path.exists():
+            logger.error(f"Le chemin du scellé n'existe pas: {scelle_path}")
+            return
 
-            # Crée le gestionnaire d'objets
-            self.objet_manager = ObjetEssai(scelle.path)
+        logger.debug(f"Scellé sélectionné: {scelle_path.name}")
 
-            # Configure les dossiers pour les photos
-            self.scelle_photos.set_photo_folder(scelle.path)
-            self.object_photos.set_photo_folder(scelle.path)
+        # Met à jour l'état local
+        self.current_scelle_path = scelle_path
 
-            # Active le bouton d'ajout d'objet
-            self.add_object_btn.setEnabled(True)
+        # Active le bouton de suppression de scellé
+        self.delete_scelle_btn.setEnabled(True)
 
-            # Charge les données
-            self._load_scelle_photos()
-            self._load_objects()
+        # Crée le gestionnaire d'objets
+        self.objet_manager = ObjetEssai(scelle_path)
 
-            # Nettoie la sélection d'objet
-            self._clear_object_selection()
+        # Configure les dossiers pour les photos
+        self.scelle_photos.set_photo_folder(scelle_path)
+        self.object_photos.set_photo_folder(scelle_path)
 
-            # Émet le signal
-            self.scelle_selected.emit(scelle.path)
+        # Active le bouton d'ajout d'objet
+        self.add_object_btn.setEnabled(True)
+
+        # Charge les données
+        self._load_scelle_photos()
+        self._load_objects()
+
+        # Nettoie la sélection d'objet
+        self._clear_object_selection()
+
+        # Émet le signal avec le bon chemin
+        self.scelle_selected.emit(scelle_path)
 
     def _on_object_clicked(self, item: QTreeWidgetItem):
         """Gère le clic sur un objet."""
@@ -421,7 +455,7 @@ class NavigationPanel(QWidget):
     # === MÉTHODES DE CHARGEMENT DE DONNÉES ===
 
     def _load_scelles(self, case_path: Path):
-        """Charge la liste des scellés."""
+        """Charge la liste des scellés avec affichage enrichi et stockage du chemin."""
         self.scelles_model.clear()
         self.scelles_model.setHorizontalHeaderLabels(["Scellés"])
 
@@ -432,9 +466,51 @@ class NavigationPanel(QWidget):
         scelle_folders.sort(key=lambda x: x.name.lower())
 
         for scelle_path in scelle_folders:
-            scelle_item = QStandardItem(scelle_path.name)
+            # Analyse du contenu
+            analysis = self._analyze_scelle_photos(scelle_path)
+
+            # Création des indicateurs visuels
+            ferme_icon = "🔒✅" if analysis["ferme"] else "🔒❌"
+            contenu_icon = "🔍✅" if analysis["contenu"] else "🔍❌"
+            recond_icon = "📦✅" if analysis["reconditionne"] else "📦❌"
+
+            # Texte des objets
+            if analysis["objects"]:
+                objects_text = f"📱{','.join(analysis['objects'])}"
+            else:
+                objects_text = "📱∅"
+
+            # Construction du texte sur DEUX LIGNES avec \n
+            line1 = f"▸ {scelle_path.name}"
+            line2 = f"  {ferme_icon} {contenu_icon} {recond_icon} | {objects_text} | 📸 {analysis['total']}"
+            display_text = f"{line1}\n{line2}"
+
+            # Création de l'item
+            scelle_item = QStandardItem(display_text)
+
+            # IMPORTANT: Stocke le chemin COMPLET dans les données
             scelle_item.setData(str(scelle_path))
+
+            # Tooltip détaillé
+            tooltip = (
+                f"Scellé: {scelle_path.name}\n"
+                f"Photos totales: {analysis['total']}\n\n"
+                f"Photos du scellé:\n"
+                f"🔒 Fermé: {'✓' if analysis['ferme'] else '✗'}\n"
+                f"🔍 Contenu: {'✓' if analysis['contenu'] else '✗'}\n"
+                f"📦 Reconditionné: {'✓' if analysis['reconditionne'] else '✗'}\n\n"
+                f"Objets d'essai ({len(analysis['objects'])}):\n"
+            )
+
+            if analysis["objects"]:
+                tooltip += "\n".join([f"📱 Objet {obj}" for obj in analysis["objects"]])
+            else:
+                tooltip += "Aucun objet d'essai"
+
+            scelle_item.setToolTip(tooltip)
+
             self.scelles_model.appendRow(scelle_item)
+
 
     def _load_objects(self):
         """Charge la liste des objets du scellé actuel."""
@@ -544,7 +620,16 @@ class NavigationPanel(QWidget):
             )
 
     def refresh_photos(self):
-        """Rafraîchit les listes de photos (appelé après prise/suppression)."""
+        """Rafraîchit les listes de photos et les indicateurs."""
+        # Recharge les scellés avec les nouveaux indicateurs
+        if self.current_case_path:
+            self._load_scelles(self.current_case_path)
+
+            # Restaure la sélection si possible
+            if self.current_scelle_path:
+                self._restore_scelle_selection()
+
+        # Rafraîchit les photos du scellé actuel
         if self.current_scelle_path:
             self._load_scelle_photos()
 
@@ -622,3 +707,57 @@ class NavigationPanel(QWidget):
                 f"Impossible de supprimer le scellé '{scelle_name}'.\n\n"
                 f"Erreur : {str(e)}"
             )
+
+    def _analyze_scelle_photos(self, scelle_path: Path) -> dict:
+        """Analyse les photos d'un scellé pour créer les indicateurs."""
+        analysis = {
+            "ferme": False,
+            "contenu": False,
+            "reconditionne": False,
+            "objects": [],
+            "total": 0
+        }
+
+        try:
+            photos = list(scelle_path.glob("*.jpg"))
+            analysis["total"] = len(photos)
+
+            objects_found = set()
+
+            for photo in photos:
+                parts = photo.stem.split("_")
+                if len(parts) >= 2:
+                    type_id = parts[-2].lower()
+
+                    # Photos du scellé
+                    if type_id in ["ferme", "fermé"]:
+                        analysis["ferme"] = True
+                    elif type_id == "contenu":
+                        analysis["contenu"] = True
+                    elif type_id in ["reconditionne", "reconditionné",
+                                     "reconditionnement"]:
+                        analysis["reconditionne"] = True
+                    # Photos d'objets (une seule lettre)
+                    elif len(parts[-2]) == 1 and parts[-2].isalpha():
+                        objects_found.add(parts[-2].upper())
+
+            analysis["objects"] = sorted(list(objects_found))
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse de {scelle_path}: {e}")
+
+        return analysis
+
+    def _restore_scelle_selection(self):
+        """Restaure la sélection du scellé après rechargement."""
+        if not self.current_scelle_path:
+            return
+
+        for row in range(self.scelles_model.rowCount()):
+            item = self.scelles_model.item(row)
+            if item and item.data() == str(self.current_scelle_path):
+                index = self.scelles_model.indexFromItem(item)
+                self.scelles_tree.setCurrentIndex(index)
+                logger.debug(
+                    f"Sélection restaurée pour: {self.current_scelle_path.name}")
+                break

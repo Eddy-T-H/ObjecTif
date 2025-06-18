@@ -26,6 +26,7 @@ import subprocess
 
 from src.core.device import ADBManager
 from src.ui.widgets.adb_status import ADBStatusWidget
+from src.ui.widgets.log_viewer import QtHandler, ColoredLogViewer
 from src.ui.widgets.operation_popup import OperationPopup
 from src.utils.error_handler import UserFriendlyErrorHandler
 
@@ -37,9 +38,10 @@ class ControlPanel(QWidget):
     connection_changed = pyqtSignal(bool)
     photo_taken = pyqtSignal(str, str)  # type, chemin_fichier
 
-    def __init__(self, adb_manager: ADBManager, parent=None):
+    def __init__(self, adb_manager: ADBManager, log_buffer=None, parent=None):
         super().__init__(parent)
         self.adb_manager = adb_manager
+        self.log_buffer = log_buffer  # buffer de logs pour console
 
         # État du contexte actuel
         self.current_case_path: Optional[Path] = None
@@ -49,21 +51,31 @@ class ControlPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        """Configure l'interface du panel de contrôle avec qt-material."""
+        """Configure l'interface du panel de contrôle avec console intégrée."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(12)
 
-        # === STATUS ADB ===
+        # === STATUS ADB DANS UN GROUPBOX ===
+        adb_group = QGroupBox("🔗 Connexion Android")
+        adb_layout = QVBoxLayout(adb_group)
+        adb_layout.setContentsMargins(12, 20, 12, 12)
+        adb_layout.setSpacing(8)
+
         self.adb_status = ADBStatusWidget(self.adb_manager)
         self.adb_status.connection_changed.connect(self._on_connection_changed)
-        layout.addWidget(self.adb_status)
+        adb_layout.addWidget(self.adb_status)
+
+        layout.addWidget(adb_group)
 
         # === ACTIONS PHOTO ===
         self._setup_photo_section(layout)
 
         # === INFORMATIONS CONTEXTUELLES ===
         self._setup_info_section(layout)
+
+        # === CONSOLE DE LOGS ===
+        self._setup_logs_section(layout)
 
 
     def _setup_photo_section(self, layout):
@@ -156,25 +168,21 @@ class ControlPanel(QWidget):
         separator.setStyleSheet("background-color: #ccc; margin: 5px 0;")
         info_layout.addWidget(separator)
 
-        # === LISTE DES SCELLÉS AVEC INDICATEURS ===
-        scelles_label = QLabel("🔒 État des Scellés:")
-        scelles_label.setStyleSheet("font-weight: bold; margin-top: 5px;")
-        info_layout.addWidget(scelles_label)
+        # === AIDE RAPIDE ===
+        help_label = QLabel("💡 Aide Rapide")
+        help_label.setStyleSheet("font-weight: bold; margin-top: 5px;")
+        info_layout.addWidget(help_label)
 
-        # Liste scrollable des scellés
-
-        self.scelles_scroll = QScrollArea()
-        self.scelles_scroll.setWidgetResizable(True)
-        self.scelles_scroll.setMinimumHeight(150)
-
-        # Widget conteneur pour les scellés
-        self.scelles_container = QWidgetBase()
-        self.scelles_layout = QVBoxLayout(self.scelles_container)
-        self.scelles_layout.setContentsMargins(5, 5, 5, 5)
-        self.scelles_layout.setSpacing(3)
-
-        self.scelles_scroll.setWidget(self.scelles_container)
-        info_layout.addWidget(self.scelles_scroll,1)
+        help_text = QLabel(
+            "• Sélectionnez un dossier dans le panel gauche\n"
+            "• Choisissez un scellé pour voir ses indicateurs\n"
+            "• Les icônes montrent l'état des photos :\n"
+            "  🔒✅/❌ Fermé, 🔍✅/❌ Contenu, 📦✅/❌ Reconditionné\n"
+            "• 📱 indique les objets d'essai présents"
+        )
+        help_text.setStyleSheet("color: #666; font-size: 11px; padding: 5px;")
+        help_text.setWordWrap(True)
+        info_layout.addWidget(help_text)
 
         layout.addWidget(info_group)
 
@@ -425,178 +433,80 @@ class ControlPanel(QWidget):
         self._update_photo_buttons_state()
         self._update_context_info()
 
-        # Analyse complète si un dossier est sélectionné
+        # Analyse simplifiée du dossier si sélectionné
         if case_path:
-            case_analysis = self._analyze_case_content(case_path)
-            self._update_case_info_display(case_analysis)
+            self._update_simple_case_info(case_path)
         else:
             # Reset l'affichage
             self.info_case.setText("📁 Aucun dossier sélectionné")
             self.info_counts.setText("🔒 Scellés: 0 | 📱 Objets: 0")
-            self._clear_scelles_status_list()
 
         logger.debug(
             f"Contexte mis à jour - Dossier: {case_path}, Scellé: {scelle_path}, Objet: {object_id}")
 
-    # === MÉTHODES D'ANALYSE ET AFFICHAGE ===
 
-    def _analyze_case_content(self, case_path: Path) -> dict:
-        """Analyse complète du contenu d'un dossier d'affaire."""
+    def _update_simple_case_info(self, case_path: Path):
+        """Met à jour les informations basiques du dossier."""
         if not case_path or not case_path.exists():
-            return {"scelles_count": 0, "objects_count": 0, "scelles": []}
-
-        scelles_data = []
-        total_objects = 0
-
-        try:
-            # Parcourt tous les dossiers de scellés
-            scelle_folders = [p for p in case_path.iterdir() if p.is_dir()]
-            scelle_folders.sort(key=lambda x: x.name.lower())
-
-            for scelle_path in scelle_folders:
-                scelle_info = self._analyze_scelle_content(scelle_path)
-                scelles_data.append(scelle_info)
-                total_objects += scelle_info["objects_count"]
-
-        except Exception as e:
-            logger.error(f"Erreur lors de l'analyse du dossier {case_path}: {e}")
-
-        return {
-            "scelles_count": len(scelles_data),
-            "objects_count": total_objects,
-            "scelles": scelles_data
-        }
-
-
-    def _analyze_scelle_content(self, scelle_path: Path) -> dict:
-        """Analyse le contenu d'un scellé (photos et objets)."""
-        scelle_info = {
-            "name": scelle_path.name,
-            "path": scelle_path,
-            "photos": {
-                "ferme": False,
-                "contenu": False,
-                "reconditionne": False
-            },
-            "objects": [],
-            "objects_count": 0,
-            "total_photos": 0
-        }
-
-        try:
-            photos = list(scelle_path.glob("*.jpg"))
-            scelle_info["total_photos"] = len(photos)
-
-            objects_found = set()
-
-            for photo in photos:
-                parts = photo.stem.split("_")
-                if len(parts) >= 2:
-                    type_id = parts[-2].lower()
-
-                    # Photos du scellé
-                    if type_id in ["ferme", "fermé"]:
-                        scelle_info["photos"]["ferme"] = True
-                    elif type_id == "contenu":
-                        scelle_info["photos"]["contenu"] = True
-                    elif type_id in ["reconditionne", "reconditionné", "reconditionnement"]:
-                        scelle_info["photos"]["reconditionne"] = True
-                    # Photos d'objets (une seule lettre)
-                    elif len(parts[-2]) == 1 and parts[-2].isalpha():
-                        objects_found.add(parts[-2].upper())
-
-            # Informations sur les objets
-            scelle_info["objects"] = sorted(list(objects_found))
-            scelle_info["objects_count"] = len(objects_found)
-
-        except Exception as e:
-            logger.error(f"Erreur lors de l'analyse du scellé {scelle_path}: {e}")
-
-        return scelle_info
-
-
-    def _create_scelle_status_widget(self, scelle_info: dict) -> QLabel:
-        """Crée un widget d'affichage pour l'état d'un scellé."""
-        # Icônes pour les types de photos
-        ferme_icon = "🔒✅" if scelle_info["photos"]["ferme"] else "🔒❌"
-        contenu_icon = "🔍✅" if scelle_info["photos"]["contenu"] else "🔍❌"
-        recond_icon = "📦✅" if scelle_info["photos"]["reconditionne"] else "📦❌"
-
-        # Texte des objets
-        if scelle_info["objects"]:
-            objects_text = f"📱 {','.join(scelle_info['objects'])}"
-        else:
-            objects_text = "📱 Aucun"
-
-        # Assemblage du texte
-        status_text = (
-            f"▸ {scelle_info['name']}\n"
-            f"  {ferme_icon} {contenu_icon} {recond_icon} | {objects_text} | 📸 {scelle_info['total_photos']}"
-        )
-
-        # Création du label
-        status_label = QLabel(status_text)
-        status_label.setStyleSheet("""
-            QLabel {
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                padding: 8px 10px;
-                font-family: monospace;
-                font-size: 12px;
-                line-height: 1.3;
-            }
-        """)
-        status_label.setWordWrap(True)
-
-        # Tooltip explicatif
-        tooltip = (
-            f"Scellé: {scelle_info['name']}\n"
-            f"Photos totales: {scelle_info['total_photos']}\n\n"
-            f"Photos du scellé:\n"
-            f"🔒 Fermé: {'✓' if scelle_info['photos']['ferme'] else '✗'}\n"
-            f"🔍 Contenu: {'✓' if scelle_info['photos']['contenu'] else '✗'}\n"
-            f"📦 Reconditionné: {'✓' if scelle_info['photos']['reconditionne'] else '✗'}\n\n"
-            f"Objets d'essai ({scelle_info['objects_count']}):\n"
-        )
-
-        if scelle_info["objects"]:
-            tooltip += "\n".join([f"📱 Objet {obj}" for obj in scelle_info["objects"]])
-        else:
-            tooltip += "Aucun objet d'essai"
-
-        status_label.setToolTip(tooltip)
-
-        return status_label
-
-
-    def _update_case_info_display(self, case_analysis: dict):
-        """Met à jour l'affichage des informations du dossier."""
-        if not case_analysis:
             return
 
-        # Met à jour les compteurs globaux
-        self.info_counts.setText(
-            f"🔒 Scellés: {case_analysis['scelles_count']} | "
-            f"📱 Objets: {case_analysis['objects_count']}"
+        try:
+            # Compte simple des scellés et objets
+            scelle_folders = [p for p in case_path.iterdir() if p.is_dir()]
+            scelles_count = len(scelle_folders)
+
+            total_objects = 0
+            for scelle_path in scelle_folders:
+                # Compte rapide des objets (photos avec une seule lettre)
+                objects_in_scelle = set()
+                for photo in scelle_path.glob("*_[A-Z]_*.jpg"):
+                    try:
+                        obj_letter = photo.stem.split("_")[-2]
+                        if len(obj_letter) == 1 and obj_letter.isalpha():
+                            objects_in_scelle.add(obj_letter)
+                    except:
+                        pass
+                total_objects += len(objects_in_scelle)
+
+            self.info_counts.setText(
+                f"🔒 Scellés: {scelles_count} | 📱 Objets: {total_objects}")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse simple du dossier {case_path}: {e}")
+
+    def _setup_logs_section(self, layout):
+        """Configure la section console de logs."""
+        logs_group = QGroupBox("📝 Console")
+        logs_layout = QVBoxLayout(logs_group)
+        logs_layout.setContentsMargins(12, 20, 12, 12)
+        logs_layout.setSpacing(8)
+
+        # Créer le viewer de logs
+        self.log_viewer = ColoredLogViewer()
+        self.log_viewer.setMinimumHeight(100)
+
+        # Charge les logs initiaux si le buffer existe
+        if self.log_buffer:
+            self.log_viewer.load_initial_logs(self.log_buffer)
+
+        # Configure le handler Loguru pour rediriger vers ce viewer
+        logger.add(
+            QtHandler(self.log_viewer).write,
+            format="{time:HH:mm:ss} | {level: <8} | {message}"
         )
 
-        # Nettoie la liste des scellés
-        self._clear_scelles_status_list()
-
-        # Ajoute chaque scellé avec son statut
-        for scelle_info in case_analysis["scelles"]:
-            status_widget = self._create_scelle_status_widget(scelle_info)
-            self.scelles_layout.addWidget(status_widget)
-
-        # Ajoute un stretch pour pousser vers le haut
-        self.scelles_layout.addStretch()
+        logs_layout.addWidget(self.log_viewer)
 
 
-    def _clear_scelles_status_list(self):
-        """Vide la liste des statuts de scellés."""
-        # Supprime tous les widgets de la liste
-        while self.scelles_layout.count():
-            child = self.scelles_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        layout.addWidget(logs_group)
+
+    #  méthode publique pour accéder aux logs
+    def clear_logs(self):
+        """Vide les logs affichés."""
+        if hasattr(self, 'log_viewer'):
+            self.log_viewer.clear()
+
+    def append_log(self, message: str, level: str = "INFO"):
+        """Ajoute un message de log."""
+        if hasattr(self, 'log_viewer'):
+            self.log_viewer.append_log(message, level)

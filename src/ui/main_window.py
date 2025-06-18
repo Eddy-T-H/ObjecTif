@@ -12,10 +12,8 @@ from loguru import logger
 from typing import Optional
 
 from src.config import AppConfig
-# SUPPRIMÉ: from src.ui.theme.design_system import apply_global_theme
 from src.ui.panels.navigation_panel import NavigationPanel
 from src.ui.panels.control_panel import ControlPanel
-from src.ui.panels.log_panel import LogPanel
 from src.ui.widgets.operation_popup import OperationPopup
 from src.utils.error_handler import UserFriendlyErrorHandler
 
@@ -70,17 +68,12 @@ class MainWindow(QMainWindow):
         # Panel de contrôle (droite)
         self.control_panel = ControlPanel(
             adb_manager=self.adb_manager,
-            parent=self
-        )
-
-        # Panel de logs (bas)
-        self.log_panel = LogPanel(
             log_buffer=self.log_buffer,
             parent=self
         )
 
     def _setup_layout(self):
-        """Configure le layout principal de la fenêtre."""
+        """Configure le layout principal de la fenêtre (simplifié)."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -88,28 +81,23 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
-        # Zone principale horizontale (navigation + contrôle)
-        upper_area = QWidget()
-        upper_layout = QHBoxLayout(upper_area)
-        upper_layout.setContentsMargins(0, 0, 0, 0)
-        upper_layout.setSpacing(8)
+        # === LAYOUT HORIZONTAL SIMPLE ===
+        horizontal_layout = QHBoxLayout()
+        horizontal_layout.setSpacing(8)
 
-        # Ajout des panels avec tailles minimales
+        # Panel gauche (navigation)
         self.navigation_panel.setMinimumWidth(280)
+        horizontal_layout.addWidget(self.navigation_panel)
+
+        # Panel droit (contrôle + console)
         self.control_panel.setMinimumWidth(280)
+        horizontal_layout.addWidget(self.control_panel)
 
-        upper_layout.addWidget(self.navigation_panel)
-        upper_layout.addWidget(self.control_panel)
+        # Répartition équilibrée
+        horizontal_layout.setStretchFactor(self.navigation_panel, 1)  # Navigation
+        horizontal_layout.setStretchFactor(self.control_panel, 1)  # Contrôle
 
-        # Splitter vertical principal
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
-        main_splitter.setChildrenCollapsible(False)
-        main_splitter.addWidget(upper_area)
-        main_splitter.addWidget(self.log_panel)
-        main_splitter.setStretchFactor(0, 3)  # Zone haute prioritaire
-        main_splitter.setStretchFactor(1, 1)  # Zone logs plus petite
-
-        main_layout.addWidget(main_splitter)
+        main_layout.addLayout(horizontal_layout)
 
     def _connect_signals(self):
         """Connecte les signaux entre les différents panels."""

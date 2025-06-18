@@ -61,39 +61,36 @@ class ADBStatusWidget(QWidget):
             raise
 
     def _setup_ui(self):
-        """Configure l'interface utilisateur avec qt-material (styles supprimés)."""
-        # Layout principal vertical pour les 3 lignes
+        """Configure l'interface utilisateur avec qt-material (version compacte)."""
+        # Layout principal vertical SANS marge excessive
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setContentsMargins(0, 0, 0, 0)  # Pas de marge interne
         main_layout.setSpacing(8)
 
         # === PREMIÈRE LIGNE : Status et informations ===
         status_layout = QHBoxLayout()
         status_layout.setSpacing(8)
 
-        # Indicateur d'état - SUPPRESSION du setStyleSheet
+        # Indicateur d'état compact
         self.status_label = QLabel()
-        self.status_label.setMinimumHeight(32)
-        self.status_label.setMaximumHeight(32)
-        # qt-material gère le style de base automatiquement
+        self.status_label.setFixedHeight(24)  # Plus petit
         status_layout.addWidget(self.status_label)
 
-        # Informations détaillées sur l'appareil - SUPPRESSION du setStyleSheet
+        # Informations détaillées sur l'appareil
         self.device_info = QLabel()
-        # qt-material gère le style automatiquement
+        self.device_info.setWordWrap(True)  # Permet le retour à la ligne
         status_layout.addWidget(self.device_info, 1)
         main_layout.addLayout(status_layout)
 
-        # === DEUXIÈME LIGNE : Sélection appareil et rafraîchissement ===
+        # === DEUXIÈME LIGNE : Sélection appareil ===
         devices_layout = QHBoxLayout()
         devices_layout.setSpacing(8)
 
-        # Liste déroulante des appareils - SUPPRESSION du setStyleSheet
+        # Liste déroulante des appareils
         self.devices_combo = QComboBox()
         self.devices_combo.setMinimumWidth(200)
         self.devices_combo.setEnabled(False)
-        self.devices_combo.setFixedHeight(32)
-        # qt-material applique automatiquement un style moderne
+        self.devices_combo.setFixedHeight(28)  # Plus compact
         devices_layout.addWidget(self.devices_combo)
 
         main_layout.addLayout(devices_layout)
@@ -102,28 +99,28 @@ class ADBStatusWidget(QWidget):
         connect_layout = QHBoxLayout()
         connect_layout.setSpacing(8)
 
-        # Bouton de rafraîchissement - SUPPRESSION du setStyleSheet
-        self.refresh_btn = QPushButton("Rafraîchir")
+        # Boutons plus compacts
+        self.refresh_btn = QPushButton("🔄 Rafraîchir")
+        self.refresh_btn.setFixedHeight(28)
         self.refresh_btn.clicked.connect(self._refresh_devices)
-        # qt-material applique le style automatiquement
 
-        # Bouton principal de connexion - SUPPRESSION du setStylesheet
         self.connect_btn = QPushButton("Se connecter")
-
+        self.connect_btn.setFixedHeight(28)
         self.connect_btn.clicked.connect(self._toggle_connection)
-        # qt-material applique le style automatiquement
-        # Bouton d'erreur ADB - SUPPRESSION du setStyleSheet
+
         self.retry_adb_btn = QPushButton("⚠️ Réessayer ADB")
-        self.retry_adb_btn.setFixedHeight(32)
+        self.retry_adb_btn.setFixedHeight(28)
         self.retry_adb_btn.clicked.connect(self._retry_adb)
         self.retry_adb_btn.setVisible(False)
-        # qt-material applique le style automatiquement
 
         connect_layout.addWidget(self.refresh_btn)
         connect_layout.addWidget(self.connect_btn)
         connect_layout.addWidget(self.retry_adb_btn)
 
         main_layout.addLayout(connect_layout)
+
+        # === FIXE LA HAUTEUR TOTALE ===
+        self.setMaximumHeight(120)  # Limite la hauteur totale
 
         # État initial
         self._check_adb_availability()
