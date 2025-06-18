@@ -15,9 +15,9 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
     QGroupBox,
-    QPushButton,
+    QPushButton, QInputDialog, QLineEdit,
 )
-from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal
+from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal, QTimer
 from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
 from pathlib import Path
 from loguru import logger
@@ -116,22 +116,22 @@ class NavigationPanel(QWidget):
         layout.addWidget(workspace_widget)
 
     def _setup_cases_section(self):
-        """Configure la section des affaires avec qt-material."""
+        """Configure la section des affaires avec possibilité de suppression."""
         group = QGroupBox("📁 Dossiers")
         layout = QVBoxLayout(group)
         layout.setSpacing(4)
         layout.setContentsMargins(8, 12, 8, 8)
 
-        # Boutons d'action - SUPPRESSION du ComponentFactory
+        # Boutons d'action
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(4)
 
-        # Bouton principal pour créer - qt-material gère le style
+        # Bouton pour créer
         add_btn = QPushButton("Nouveau")
         add_btn.clicked.connect(self._create_new_case)
         btn_layout.addWidget(add_btn)
 
-        # Bouton utilitaire - qt-material gère le style
+        # Bouton explorateur
         self.explorer_btn = QPushButton("Ouvrir dans l'explorateur")
         self.explorer_btn.setToolTip("Ouvrir dans l'explorateur")
         self.explorer_btn.setEnabled(False)
@@ -140,9 +140,8 @@ class NavigationPanel(QWidget):
 
         layout.addLayout(btn_layout)
 
-        # TreeView des affaires - SUPPRESSION du ComponentFactory
+        # TreeView des affaires
         self.cases_tree = QTreeView()
-        # qt-material applique automatiquement un style moderne aux TreeView
         self.cases_model = QFileSystemModel()
         self.cases_model.setRootPath("")
         self.cases_tree.setModel(self.cases_model)
@@ -157,26 +156,36 @@ class NavigationPanel(QWidget):
         return group
 
     def _setup_scelles_section(self):
-        """Configure la section des scellés avec qt-material."""
+        """Configure la section des scellés avec possibilité de suppression."""
         group = QGroupBox("🔒 Scellés")
-
         layout = QVBoxLayout(group)
         layout.setContentsMargins(8, 12, 8, 8)
         layout.setSpacing(4)
 
-        # Bouton de navigation pour créer des scellés - SUPPRESSION du ComponentFactory
+        # Boutons d'action
+        scelle_btn_layout = QHBoxLayout()
+        scelle_btn_layout.setSpacing(4)
+
+        # Bouton ajouter
         add_scelle_btn = QPushButton("Ajouter un scellé")
         add_scelle_btn.clicked.connect(self._create_new_scelle)
-        # qt-material applique automatiquement un style moderne
-        layout.addWidget(add_scelle_btn)
+        scelle_btn_layout.addWidget(add_scelle_btn)
+
+        self.delete_scelle_btn = QPushButton("🗑️")
+        self.delete_scelle_btn.setEnabled(False)
+        self.delete_scelle_btn.clicked.connect(self._delete_current_scelle)
+        self.delete_scelle_btn.setToolTip("Supprimer le scellé sélectionné")
+        self.delete_scelle_btn.setFixedWidth(35)
+        scelle_btn_layout.addWidget(self.delete_scelle_btn)
+
+        layout.addLayout(scelle_btn_layout)
 
         # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Arborescence des scellés - SUPPRESSION du ComponentFactory
+        # Arborescence des scellés
         self.scelles_tree = QTreeView()
-        # qt-material applique automatiquement un style moderne
         self.scelles_tree.setMinimumWidth(100)
         self.scelles_model = QStandardItemModel()
         self.scelles_model.setHorizontalHeaderLabels(["Scellés"])
@@ -231,14 +240,17 @@ class NavigationPanel(QWidget):
     # === GESTION DES ÉVÉNEMENTS ===
 
     def _on_case_clicked(self, index: QModelIndex):
-        """Gère le clic sur une affaire."""
+        """Gère le clic sur une affaire """
         path = Path(self.cases_model.filePath(index))
         if path.is_dir():
             self.current_case_path = path
             self.current_scelle_path = None
 
-            # Active le bouton explorateur
+            # Active les boutons
             self.explorer_btn.setEnabled(True)
+
+            # Désactive les boutons de scellé
+            self.delete_scelle_btn.setEnabled(False)
 
             # Crée le gestionnaire de scellé
             self.scelle_manager = Scelle(path)
@@ -255,7 +267,7 @@ class NavigationPanel(QWidget):
             self.case_selected.emit(path)
 
     def _on_scelle_clicked(self, index: QModelIndex):
-        """Gère le clic sur un scellé."""
+        """Gère le clic sur un scellé avec activation du bouton suppression."""
         item = self.scelles_model.itemFromIndex(index)
         if not item:
             return
@@ -265,6 +277,9 @@ class NavigationPanel(QWidget):
 
         if scelle:
             self.current_scelle_path = scelle.path
+
+            # Active le bouton de suppression de scellé
+            self.delete_scelle_btn.setEnabled(True)  # NOUVEAU
 
             # Crée le gestionnaire d'objets
             self.objet_manager = ObjetEssai(scelle.path)
@@ -545,3 +560,65 @@ class NavigationPanel(QWidget):
         # Pour l'instant, le panel de navigation n'a pas besoin de cette info
         # Mais la méthode est là pour l'extensibilité future
         pass
+
+    def _delete_current_scelle(self):
+        """Supprime le scellé actuellement sélectionné."""
+        if not self.current_scelle_path or not self.current_scelle_path.exists():
+            QMessageBox.warning(self, "Erreur", "Aucun scellé sélectionné.")
+            return
+
+        scelle_name = self.current_scelle_path.name
+
+        try:
+            photos_count = len(list(self.current_scelle_path.glob("*.jpg")))
+
+            confirm_msg = (
+                f"Supprimer le scellé '{scelle_name}' ?\n\n"
+                f"Contenu : {photos_count} photo(s)\n"
+                f"⚠️ Action irréversible\n\n"
+                f"Tapez 'oui' pour confirmer :"
+            )
+
+            text, ok = QInputDialog.getText(
+                self,
+                "Confirmer la suppression",
+                confirm_msg,
+                QLineEdit.EchoMode.Normal
+            )
+
+            if ok and text.lower() in ['oui', 'yes']:
+                # Suppression effective
+                import shutil
+                shutil.rmtree(self.current_scelle_path)
+
+                logger.info(f"Scellé supprimé : {scelle_name}")
+
+                # Nettoie l'interface
+                self.current_scelle_path = None
+                self.objet_manager = None
+
+                # Désactive les boutons
+                self.delete_scelle_btn.setEnabled(False)
+                self.add_object_btn.setEnabled(False)
+
+                # Nettoie les sections
+                self._clear_objects_section()
+                self.scelle_photos.clear()
+
+                # Recharge les scellés
+                if self.current_case_path:
+                    self._load_scelles(self.current_case_path)
+
+                # Émet un signal de déselection
+                self.scelle_selected.emit(Path())  # Path vide
+            else:
+                logger.info("Suppression scellé annulée par l'utilisateur")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de la suppression du scellé {scelle_name}: {e}")
+            QMessageBox.critical(
+                self,
+                "Erreur de suppression",
+                f"Impossible de supprimer le scellé '{scelle_name}'.\n\n"
+                f"Erreur : {str(e)}"
+            )
