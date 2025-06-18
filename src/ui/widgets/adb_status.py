@@ -18,8 +18,6 @@ from src.core.device import ADBManager
 from src.ui.widgets.stream_window import StreamWindow
 from src.ui.widgets.operation_popup import OperationPopup
 
-from src.ui.theme.theme_manager import set_widget_class
-
 
 class ADBStatusWidget(QWidget):
     """Widget affichant l'état de la connexion ADB avec qt-material."""
@@ -159,9 +157,6 @@ class ADBStatusWidget(QWidget):
         """Vérifie si ADB est disponible avec indicateurs visuels qt-material."""
         if not self.adb_manager.is_adb_available():
             self.status_label.setText("⚠️ ADB INDISPONIBLE")
-            # UTILISE qt-material avec classe CSS au lieu de setStyleSheet
-            set_widget_class(self.status_label, "status-warning")
-
             self.device_info.setText("🚫 ADB non trouvé sur le système")
             # qt-material gère la couleur automatiquement
 
@@ -434,8 +429,6 @@ class ADBStatusWidget(QWidget):
         """Gère les erreurs de connexion avec qt-material."""
         try:
             self.status_label.setText("❌ ERREUR")
-            set_widget_class(self.status_label, "status-warning")
-
             self.connect_btn.setText("Se connecter")
             self.device_info.clear()
 
@@ -454,8 +447,6 @@ class ADBStatusWidget(QWidget):
             if is_connected:
                 # État connecté avec qt-material
                 self.status_label.setText("🟢 CONNECTÉ")
-                set_widget_class(self.status_label, "status-connected")
-
                 # Bouton de déconnexion - qt-material gère le style
                 self.connect_btn.setText("Se déconnecter")
                 # Pas de setStyleSheet - qt-material s'en charge
@@ -481,8 +472,6 @@ class ADBStatusWidget(QWidget):
             else:
                 # État déconnecté avec qt-material
                 self.status_label.setText("🔴 DÉCONNECTÉ")
-                set_widget_class(self.status_label, "status-disconnected")
-
                 # Bouton de connexion - qt-material gère le style
                 self.connect_btn.setText("Se connecter")
                 # Pas de setStyleSheet - qt-material s'en charge
@@ -590,8 +579,6 @@ class ADBStatusWidget(QWidget):
             self._close_operation_popup()
 
             self.status_label.setText("❌ ERREUR")
-            set_widget_class(self.status_label, "status-warning")
-
             self.connect_btn.setText("Se connecter")
             # Pas de setStyleSheet - qt-material s'en charge
 

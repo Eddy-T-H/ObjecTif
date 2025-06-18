@@ -11,11 +11,6 @@ from PyQt6.QtWidgets import QApplication
 
 from src.config import AppConfig
 from src.ui.main_window import MainWindow
-from src.ui.theme.native_theme import (
-    apply_native_qt_theme,
-    setup_native_theme_attributes,
-    detect_system_theme_info,
-)
 
 
 class LogBuffer:
@@ -77,24 +72,6 @@ def main():
 
     # Crée l'application Qt
     app = QApplication(sys.argv)
-
-    # === CONFIGURATION DU THÈME NATIF QT6 ===
-
-    # Configure les attributs pour une meilleure détection du thème
-    setup_native_theme_attributes(app)
-
-    # Détecte et log les informations du thème système
-    theme_info = detect_system_theme_info(app)
-    logger.info(f"Thème système détecté: {theme_info['theme_name']}")
-    logger.debug(f"Détails du thème: {theme_info}")
-
-    # Applique les améliorations au thème natif
-    theme_applied = apply_native_qt_theme(app)
-
-    if theme_applied:
-        logger.info("Thème natif Qt6 appliqué avec améliorations")
-    else:
-        logger.warning("Utilisation du thème Qt6 par défaut sans améliorations")
 
     # Crée et affiche la fenêtre principale
     window = MainWindow(config, log_buffer)

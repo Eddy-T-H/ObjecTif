@@ -24,14 +24,8 @@ class LogPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Créer le viewer de logs - SUPPRESSION de setStyleSheet
+        # Créer le viewer de logs
         self.log_viewer = ColoredLogViewer()
-        # qt-material + classe CSS "log-viewer" appliquent automatiquement :
-        # - Police monospace (Consolas, Monaco)
-        # - Couleurs adaptées au thème
-        # - Bordures modernes
-        # - Padding cohérent
-        # - Adaptation clair/sombre automatique
 
         # Charge les logs initiaux si le buffer existe
         if self.log_buffer:

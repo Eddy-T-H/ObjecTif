@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QPlainTextEdit
 from PyQt6.QtGui import QColor, QPalette, QTextCursor
 
-from src.ui.theme.theme_manager import set_widget_class
 
 
 class ColoredLogViewer(QPlainTextEdit):
@@ -15,9 +14,6 @@ class ColoredLogViewer(QPlainTextEdit):
         self.setMaximumHeight(200)
         self.setMinimumHeight(100)
         self.document().setMaximumBlockCount(5000)  # Limite le nombre de lignes
-
-        # AJOUT: Application de la classe CSS au lieu de setStyleSheet
-        set_widget_class(self, "log-viewer")
 
     def append_log(self, message, level="INFO"):
         cursor = self.textCursor()

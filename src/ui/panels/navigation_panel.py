@@ -24,7 +24,6 @@ from loguru import logger
 from typing import Optional
 
 from src.config import AppConfig
-# SUPPRESSION: from src.ui.theme.design_system import DesignTokens, ComponentFactory
 from src.ui.dialogs.create_affaire_dialog import CreateAffaireDialog
 from src.ui.dialogs.create_scelle_dialog import CreateScelleDialog
 from src.ui.widgets.photo_list import PhotoListWidget
@@ -33,8 +32,6 @@ from src.core.evidence.scelle import Scelle
 from src.core.evidence.objet import ObjetEssai
 from src.utils.error_handler import UserFriendlyErrorHandler
 
-# AJOUT: Import du gestionnaire de thème
-from src.ui.theme.theme_manager import set_widget_class
 
 
 class NavigationPanel(QWidget):

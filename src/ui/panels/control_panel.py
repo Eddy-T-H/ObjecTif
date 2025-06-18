@@ -27,7 +27,6 @@ from src.ui.widgets.adb_status import ADBStatusWidget
 from src.ui.widgets.operation_popup import OperationPopup
 from src.utils.error_handler import UserFriendlyErrorHandler
 
-from src.ui.theme.theme_manager import set_widget_class
 
 class ControlPanel(QWidget):
     """Panel de contrôle pour les actions ADB et la prise de photos."""
@@ -79,8 +78,7 @@ class ControlPanel(QWidget):
         self.btn_open_camera = QPushButton("📱 Ouvrir appareil photo")
         self.btn_open_camera.setEnabled(False)
         self.btn_open_camera.clicked.connect(self._open_camera)
-        # AJOUT de classe CSS pour style spécial
-        set_widget_class(self.btn_open_camera, "camera-button")
+
         photo_layout.addWidget(self.btn_open_camera)
 
         # === SÉPARATEUR ===
@@ -95,18 +93,11 @@ class ControlPanel(QWidget):
         grid_layout.setSpacing(8)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Boutons d'action - SUPPRESSION des setStyleSheet
+        # Boutons d'action
         self.btn_photo_ferme = QPushButton("🔒 Scellé\nFermé")
-        set_widget_class(self.btn_photo_ferme, "photo-action")  # Classe CSS
-
         self.btn_photo_content = QPushButton("🔍 Contenu\nScellé")
-        set_widget_class(self.btn_photo_content, "photo-action")
-
         self.btn_photo_objet = QPushButton("📱 Objet\nd'Essai")
-        set_widget_class(self.btn_photo_objet, "photo-action")
-
-        self.btn_photo_recond = QPushButton("📦 Reconditionnement")
-        set_widget_class(self.btn_photo_recond, "photo-action")
+        self.btn_photo_recond = QPushButton("📦 Scellé\nReconditionné")
 
         # Organisation en grille 2x2
         grid_layout.addWidget(self.btn_photo_ferme, 0, 0)
